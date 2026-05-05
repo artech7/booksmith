@@ -84,23 +84,23 @@ function ItemCard({ item, characters, onUpdate, onDelete, setSaveStatus }) {
             {assoc.map(id => {
               const char = characters.find(c => c.id === id);
               return char ? (
-                <span key={id} className="item-assoc-tag">
+                <span key={id} className="item-tag">
                   {char.name}
-                  <button className="item-assoc-tag-remove" onClick={() => removeAssoc(id)}>×</button>
+                  <button className="item-tag-del" onClick={() => removeAssoc(id)}>×</button>
                 </span>
               ) : null;
             })}
           </div>
         )}
         {unlinked.length > 0 && (
-          <select className="item-assoc-select" onChange={addAssoc} defaultValue="">
+          <select className="item-assoc-sel" onChange={addAssoc} defaultValue="">
             <option value="">+ link character…</option>
             {unlinked.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         )}
       </div>
 
-      <div className="item-card-footer">
+      <div className="item-card-foot">
         <button className="btn btn-sm btn-danger" onClick={() => onDelete(item.id)}>Delete</button>
       </div>
     </div>
@@ -120,7 +120,7 @@ export default function Items({ items, characters, onAdd, onUpdate, onDelete, se
       <div className="items-toolbar">
         <div>
           <div className="panel-eyebrow">Book</div>
-          <div className="panel-title" style={{ fontSize: '20px', marginTop: '1px' }}>World Items</div>
+          <div className="panel-heading" style={{ fontSize: '20px', marginTop: '1px' }}>World Items</div>
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <select
@@ -140,15 +140,15 @@ export default function Items({ items, characters, onAdd, onUpdate, onDelete, se
       {/* ── Scrollable content ── */}
       <div className="items-scroll">
         {items.length === 0 ? (
-          <div className="empty-state" style={{ flex: 1 }}>
+          <div className="empty" style={{ flex: 1 }}>
             <div className="empty-glyph">◈</div>
             <p>No items yet</p>
             <small>Choose a category above and click Add Item</small>
           </div>
         ) : (
           grouped.map(group => (
-            <div key={group.id} className="items-category-group">
-              <div className="items-category-label">
+            <div key={group.id} className="items-cat-group">
+              <div className="items-cat-label">
                 <span>{group.icon}</span>
                 <span>{group.label}</span>
               </div>

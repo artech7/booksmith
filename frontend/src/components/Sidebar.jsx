@@ -9,14 +9,14 @@ export default function Sidebar({
         <div className="sidebar-tagline">Your writing sanctuary</div>
       </div>
 
-      <div className="sidebar-scroll">
-        <div className="sidebar-section-label">
+      <div className="sidebar-body">
+        <div className="sb-section">
           <span>Library</span>
           <button className="icon-btn" onClick={onAddBook} title="New book">＋</button>
         </div>
 
         {books.length === 0 && (
-          <div style={{ padding: '10px 16px 6px', fontSize: '12px', fontStyle: 'italic', color: 'var(--text-faint)' }}>
+          <div style={{ padding: '8px 16px', fontSize: '12px', fontStyle: 'italic', color: 'var(--text-faint)' }}>
             No books yet — click ＋ to begin.
           </div>
         )}
@@ -24,43 +24,42 @@ export default function Sidebar({
         {books.map(book => (
           <div key={book.id}>
             <div
-              className={`sidebar-item ${selectedBookId === book.id ? 'active' : ''}`}
+              className={`sb-item ${selectedBookId === book.id ? 'active' : ''}`}
               onClick={() => onSelectBook(book.id)}
             >
-              <span className="sidebar-item-icon">📖</span>
-              <span className="sidebar-item-label">{book.title}</span>
+              <span style={{ fontSize: '12px' }}>📖</span>
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {book.title}
+              </span>
               <button
-                className="sidebar-item-del"
+                className="sb-item-del"
                 onClick={e => { e.stopPropagation(); onDeleteBook(book.id); }}
-                title="Delete book"
               >×</button>
             </div>
 
             {selectedBookId === book.id && (
               <>
-                <div className="sidebar-section-label" style={{ paddingLeft: '32px', paddingTop: '6px' }}>
+                <div className="sb-section" style={{ paddingLeft: '30px', paddingTop: '6px' }}>
                   <span>Chapters</span>
                 </div>
-
                 {chapters.map(ch => (
                   <div
                     key={ch.id}
-                    className={`sidebar-item sidebar-chapter ${selectedChapterId === ch.id ? 'active' : ''}`}
+                    className={`sb-item sb-item-ch ${selectedChapterId === ch.id ? 'active' : ''}`}
                     onClick={() => onSelectChapter(ch.id)}
                   >
-                    <span className="sidebar-item-icon" style={{ color: 'var(--text-faint)', fontSize: '9px' }}>§</span>
-                    <span className="sidebar-item-label">{ch.title}</span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-faint)' }}>§</span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ch.title}
+                    </span>
                     <button
-                      className="sidebar-item-del"
+                      className="sb-item-del"
                       onClick={e => { e.stopPropagation(); onDeleteChapter(ch.id); }}
-                      title="Delete chapter"
                     >×</button>
                   </div>
                 ))}
-
-                <div className="sidebar-item sidebar-chapter sidebar-add" onClick={onAddChapter}>
-                  <span className="sidebar-item-icon">＋</span>
-                  <span>New chapter</span>
+                <div className="sb-item sb-item-ch sb-add" onClick={onAddChapter}>
+                  <span>＋</span><span>New chapter</span>
                 </div>
               </>
             )}

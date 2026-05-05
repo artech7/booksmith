@@ -81,18 +81,18 @@ function CharCard({ character, allChars, onUpdate, onDelete, setSaveStatus }) {
         {rels.map((rel, i) => {
           const target = allChars.find(c => c.id === rel.targetId);
           return target ? (
-            <div key={i} className="char-rel-item">
+            <div key={i} className="char-rel">
               <span className="char-rel-arrow">→</span>
               <span className="char-rel-type">{rel.label}</span>
               <span>{target.name}</span>
-              <button className="char-rel-remove" onClick={() => removeRel(i)}>×</button>
+              <button className="char-rel-del" onClick={() => removeRel(i)}>×</button>
             </div>
           ) : null;
         })}
 
         {showRelForm ? (
           <div className="rel-form">
-            <div className="rel-form-row">
+            <div className="rel-row">
               <select
                 className="rel-select"
                 value={relTarget}
@@ -102,7 +102,7 @@ function CharCard({ character, allChars, onUpdate, onDelete, setSaveStatus }) {
                 {others.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
-            <div className="rel-form-row">
+            <div className="rel-row">
               <input
                 className="rel-input"
                 value={relType}
@@ -111,7 +111,7 @@ function CharCard({ character, allChars, onUpdate, onDelete, setSaveStatus }) {
                 onKeyDown={e => e.key === 'Enter' && addRel()}
               />
             </div>
-            <div className="rel-form-row" style={{ gap: '6px' }}>
+            <div className="rel-row" style={{ gap: '6px' }}>
               <button className="btn btn-accent btn-sm" onClick={addRel}>Add</button>
               <button className="btn btn-sm" onClick={() => { setShowRelForm(false); setRelTarget(''); setRelType(''); }}>
                 Cancel
@@ -131,7 +131,7 @@ function CharCard({ character, allChars, onUpdate, onDelete, setSaveStatus }) {
         )}
       </div>
 
-      <div className="char-card-footer">
+      <div className="char-card-foot">
         <button className="btn btn-sm btn-danger" onClick={() => onDelete(character.id)}>Delete</button>
       </div>
     </div>
@@ -140,17 +140,17 @@ function CharCard({ character, allChars, onUpdate, onDelete, setSaveStatus }) {
 
 export default function Characters({ characters, onAdd, onUpdate, onDelete, setSaveStatus }) {
   return (
-    <div className="characters-panel">
-      <div className="chars-header">
+    <div className="chars-panel">
+      <div className="chars-head">
         <div>
           <div className="panel-eyebrow">Book</div>
-          <div className="panel-title">Cast of Characters</div>
+          <div className="panel-heading">Cast of Characters</div>
         </div>
         <button className="btn btn-accent" onClick={onAdd}>＋ New Character</button>
       </div>
 
       {characters.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty">
           <div className="empty-glyph">◈</div>
           <p>No characters yet</p>
           <small>Add your first character above</small>

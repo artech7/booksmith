@@ -118,9 +118,9 @@ function CheckItem({ label, sub, checked, onChange }) {
   return (
     <label className={`export-check-item ${checked ? 'checked' : ''}`}>
       <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
-      <span className="export-check-label">
+      <span className="ex-check-label">
         {label}
-        {sub && <span className="export-check-sub"> — {sub}</span>}
+        {sub && <span className="ex-check-sub"> — {sub}</span>}
       </span>
     </label>
   );
@@ -211,39 +211,39 @@ export default function Export({ book, chapters, characters, items, onClose }) {
   return (
     <div className="modal-backdrop">
       <div className="modal" ref={ref}>
-        <div className="modal-header">
+        <div className="modal-head">
           <div>
             <div className="modal-title">Export Book</div>
-            <div className="modal-subtitle">{book.title}</div>
+            <div className="modal-sub">{book.title}</div>
           </div>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-x" onClick={onClose}>×</button>
         </div>
 
         <div className="modal-body">
 
           {/* ── Book overview ── */}
           <div>
-            <div className="export-section-label">Book Overview</div>
-            <div className="export-check-group">
+            <div className="ex-label">Book Overview</div>
+            <div className="ex-checks">
               <CheckItem label="Book title" checked={bookTitle} onChange={setBookTitle} />
               <CheckItem label="Story overview / plot" sub={book.plot ? `${book.plot.slice(0,60)}…` : 'empty'} checked={bookPlot} onChange={setBookPlot} />
             </div>
           </div>
 
-          <div className="export-divider" />
+          <div className="ex-div" />
 
           {/* ── Chapters ── */}
           <div>
-            <div className="export-section-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div className="ex-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Chapters</span>
-              <button className="select-all-btn" onClick={() =>
+              <button className="ex-selall" onClick={() =>
                 setSelChapters(allChapters ? [] : chapters.map(c => c.id))
               }>{allChapters ? 'Deselect all' : 'Select all'}</button>
             </div>
             {chapters.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-faint)', fontStyle: 'italic', padding: '4px 10px' }}>No chapters yet</div>
             ) : (
-              <div className="export-check-group">
+              <div className="ex-checks">
                 {chapters.map(ch => (
                   <CheckItem
                     key={ch.id}
@@ -264,12 +264,12 @@ export default function Export({ book, chapters, characters, items, onClose }) {
             )}
           </div>
 
-          <div className="export-divider" />
+          <div className="ex-div" />
 
           {/* ── Characters ── */}
           <div>
-            <div className="export-section-label">Characters</div>
-            <div className="export-check-group">
+            <div className="ex-label">Characters</div>
+            <div className="ex-checks">
               <CheckItem
                 label="Cast of Characters"
                 sub={`${characters.length} character${characters.length !== 1 ? 's' : ''}`}
@@ -279,17 +279,17 @@ export default function Export({ book, chapters, characters, items, onClose }) {
             </div>
           </div>
 
-          <div className="export-divider" />
+          <div className="ex-div" />
 
           {/* ── Items ── */}
           <div>
-            <div className="export-section-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <div className="ex-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>World Items</span>
-              <button className="select-all-btn" onClick={() =>
+              <button className="ex-selall" onClick={() =>
                 setSelItemCats(allCats ? [] : CATEGORIES.map(c => c.id))
               }>{allCats ? 'Deselect all' : 'Select all'}</button>
             </div>
-            <div className="export-check-group">
+            <div className="ex-checks">
               {CATEGORIES.map(cat => {
                 const count = items.filter(i => i.category === cat.id).length;
                 return (
@@ -308,8 +308,8 @@ export default function Export({ book, chapters, characters, items, onClose }) {
         </div>
 
         {/* ── Footer ── */}
-        <div className="modal-footer">
-          <div className="format-toggle" style={{ maxWidth: '400px' }}>
+        <div className="modal-foot">
+          <div className="fmt-row" style={{ maxWidth: '400px' }}>
             {FORMATS.map(f => (
               <button
                 key={f.id}
@@ -317,7 +317,7 @@ export default function Export({ book, chapters, characters, items, onClose }) {
                 onClick={() => setFormat(f.id)}
               >
                 {f.label}
-                <span className="format-btn-ext">{f.ext}</span>
+                <span className="fmt-btn-ext">{f.ext}</span>
               </button>
             ))}
           </div>

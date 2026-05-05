@@ -6,8 +6,8 @@ const FONTS = [
   { id: 'lora',         label: 'Lora',           style: { fontFamily: "'Lora', Georgia, serif" } },
   { id: 'merriweather', label: 'Merriweather',   style: { fontFamily: "'Merriweather', Georgia, serif" } },
   { id: 'sourceserif',  label: 'Source Serif 4', style: { fontFamily: "'Source Serif 4', Georgia, serif" } },
-  { id: 'georgia',      label: 'Georgia',        style: { fontFamily: "Georgia, 'Times New Roman', serif" } },
-  { id: 'palatino',     label: 'Palatino',       style: { fontFamily: "Palatino, 'Palatino Linotype', serif" } },
+  { id: 'georgia',      label: 'Georgia',        style: { fontFamily: "Georgia, serif" } },
+  { id: 'palatino',     label: 'Palatino',       style: { fontFamily: "Palatino, serif" } },
   { id: 'inter',        label: 'Inter',          style: { fontFamily: "'Inter', system-ui, sans-serif" } },
 ];
 
@@ -21,75 +21,57 @@ const ACCENTS = [
 ];
 
 const SCALES = [
-  { id: 0.85, label: 'XS', hint: '85%'  },
-  { id: 0.92, label: 'S',  hint: '92%'  },
-  { id: 1.00, label: 'M',  hint: '100%' },
-  { id: 1.10, label: 'L',  hint: '110%' },
-  { id: 1.20, label: 'XL', hint: '120%' },
+  { id: 0.85, label: 'XS' },
+  { id: 0.92, label: 'S'  },
+  { id: 1.00, label: 'M'  },
+  { id: 1.10, label: 'L'  },
+  { id: 1.20, label: 'XL' },
 ];
 
 export default function Settings({ theme, font, accent, scale, onTheme, onFont, onAccent, onScale, onClose }) {
   const ref = useRef(null);
 
   useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) onClose();
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const handle = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
   }, [onClose]);
 
   return (
     <div className="settings-overlay">
       <div className="settings-panel" ref={ref}>
 
-        {/* Theme */}
         <div>
-          <div className="settings-group-label">Theme</div>
-          <div className="theme-toggle">
-            <button className={`theme-btn ${theme === 'dark'  ? 'active' : ''}`} onClick={() => onTheme('dark')}>
-              ◐ Dark
-            </button>
-            <button className={`theme-btn ${theme === 'light' ? 'active' : ''}`} onClick={() => onTheme('light')}>
-              ○ Light
-            </button>
+          <div className="s-label">Theme</div>
+          <div className="theme-row">
+            <button className={`theme-btn ${theme === 'dark'  ? 'active' : ''}`} onClick={() => onTheme('dark')}>◐ Dark</button>
+            <button className={`theme-btn ${theme === 'light' ? 'active' : ''}`} onClick={() => onTheme('light')}>○ Light</button>
           </div>
         </div>
 
-        <div className="settings-divider" />
+        <div className="s-divider" />
 
-        {/* UI Scale */}
         <div>
-          <div className="settings-group-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <div className="s-label">
             <span>UI Scale</span>
-            <span style={{ color: 'var(--accent)' }}>{Math.round(scale * 100)}%</span>
+            <span>{Math.round(scale * 100)}%</span>
           </div>
           <div className="scale-row">
             {SCALES.map(s => (
-              <button
-                key={s.id}
-                className={`scale-btn ${scale === s.id ? 'active' : ''}`}
-                onClick={() => onScale(s.id)}
-                title={s.hint}
-              >
+              <button key={s.id} className={`scale-btn ${scale === s.id ? 'active' : ''}`} onClick={() => onScale(s.id)}>
                 {s.label}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="settings-divider" />
+        <div className="s-divider" />
 
-        {/* Accent color */}
         <div>
-          <div className="settings-group-label">Accent Color</div>
+          <div className="s-label">Accent Color</div>
           <div className="color-grid">
             {ACCENTS.map(a => (
-              <button
-                key={a.id}
-                className={`color-swatch ${accent === a.id ? 'active' : ''}`}
-                onClick={() => onAccent(a.id)}
-              >
+              <button key={a.id} className={`color-swatch ${accent === a.id ? 'active' : ''}`} onClick={() => onAccent(a.id)}>
                 <span className="swatch-dot" style={{ background: a.color }} />
                 <span className="swatch-label">{a.label}</span>
               </button>
@@ -97,21 +79,16 @@ export default function Settings({ theme, font, accent, scale, onTheme, onFont, 
           </div>
         </div>
 
-        <div className="settings-divider" />
+        <div className="s-divider" />
 
-        {/* Font */}
         <div>
-          <div className="settings-group-label">Text Style</div>
-          <div className="font-grid">
+          <div className="s-label">Text Style</div>
+          <div className="font-list">
             {FONTS.map(f => (
-              <button
-                key={f.id}
-                className={`font-option ${font === f.id ? 'active' : ''}`}
-                onClick={() => onFont(f.id)}
-              >
-                <span className="font-option-dot" />
+              <button key={f.id} className={`font-opt ${font === f.id ? 'active' : ''}`} onClick={() => onFont(f.id)}>
+                <span className="font-dot" />
                 <span style={f.style}>{f.label}</span>
-                <span style={{ marginLeft: 'auto', fontSize: '15px', opacity: 0.45, ...f.style }}>Aa</span>
+                <span className="font-aa" style={f.style}>Aa</span>
               </button>
             ))}
           </div>
