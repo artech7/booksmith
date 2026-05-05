@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  booksmith:
+    build: .
+    container_name: booksmith
+    ports:
+      - "3777:3000"
+    volumes:
+      - booksmith_data:/data
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - DATA_DIR=/data
+
+volumes:
+  booksmith_data:
+    driver: local
