@@ -70,7 +70,7 @@ if [ -z "$(git status --porcelain)" ]; then
 else
   git add .
   git commit -m "$COMMIT_MSG"
-  git push
+  git push --set-upstream origin "$(git branch --show-current)" 2>/dev/null || git push
   ok "Pushed to GitHub"
 fi
 
