@@ -309,28 +309,31 @@ export default function Export({ book, chapters, characters, items, onClose }) {
 
         {/* ── Footer ── */}
         <div className="modal-foot">
-          <div className="fmt-row" style={{ maxWidth: '400px' }}>
+          {/* Format picker — full width row */}
+          <div className="fmt-row">
             {FORMATS.map(f => (
               <button
                 key={f.id}
-                className={`format-btn ${format === f.id ? 'active' : ''}`}
+                className={`fmt-btn ${format === f.id ? 'active' : ''}`}
                 onClick={() => setFormat(f.id)}
               >
                 {f.label}
-                <span className="fmt-btn-ext">{f.ext}</span>
+                <span className="fmt-ext">{f.ext}</span>
               </button>
             ))}
           </div>
-          <div style={{ flex: 1 }} />
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button
-            className="btn btn-accent"
-            onClick={handleExport}
-            disabled={nothingSelected || exporting}
-            style={{ opacity: (nothingSelected || exporting) ? 0.5 : 1, minWidth: '90px' }}
-          >
-            {exporting ? '…Generating' : '↓ Export'}
-          </button>
+          {/* Action buttons row */}
+          <div className="modal-foot-actions">
+            <button className="btn" onClick={onClose}>Cancel</button>
+            <button
+              className="btn btn-accent"
+              onClick={handleExport}
+              disabled={nothingSelected || exporting}
+              style={{ opacity: (nothingSelected || exporting) ? 0.5 : 1, minWidth: '90px' }}
+            >
+              {exporting ? '…Generating' : '↓ Export'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

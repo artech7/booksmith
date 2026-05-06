@@ -27,7 +27,7 @@ const TABS = [
   { id: 'chapterPlot',label: 'Chapter Plot',  needs: 'chapter' },
   { id: 'bookPlot',   label: 'Book Plot',     needs: 'book'    },
   { id: 'characters', label: 'Characters',    needs: 'book'    },
-  { id: 'items',      label: 'Items',         needs: 'book'    },
+  { id: 'items',      label: 'World Builder', needs: 'book'    },
 ];
 
 // ── App ───────────────────────────────────────────────────────────────────────
