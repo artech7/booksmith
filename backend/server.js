@@ -61,8 +61,12 @@ db.exec(`
 
 // Live migrations for existing databases
 ['ALTER TABLE books ADD COLUMN order_index INTEGER NOT NULL DEFAULT 0',
+ 'ALTER TABLE books ADD COLUMN word_goal INTEGER NOT NULL DEFAULT 0',
+ 'ALTER TABLE books ADD COLUMN chapter_goal INTEGER NOT NULL DEFAULT 0',
  'ALTER TABLE characters ADD COLUMN chapter_ids TEXT NOT NULL DEFAULT "[]"',
  'ALTER TABLE items ADD COLUMN chapter_ids TEXT NOT NULL DEFAULT "[]"',
+ 'ALTER TABLE chapters ADD COLUMN word_goal INTEGER NOT NULL DEFAULT 0',
+ 'ALTER TABLE chapters ADD COLUMN page_goal INTEGER NOT NULL DEFAULT 0',
 ].forEach(sql => { try { db.exec(sql); } catch(_) {} });
 
 app.use(express.json());
@@ -88,7 +92,7 @@ app.post('/api/books', (req, res) => {
 });
 
 app.put('/api/books/:id', (req, res) => {
-  const fields = pick(['title', 'plot', 'order_index'], req.body);
+  const fields = pick(['title', 'plot', 'order_index', 'word_goal', 'chapter_goal'], req.body);
   if (Object.keys(fields).length) {
     const sets = Object.keys(fields).map(k => `${k} = @${k}`).join(', ');
     db.prepare(`UPDATE books SET ${sets}, updated_at = datetime('now') WHERE id = @id`)
@@ -120,7 +124,7 @@ app.post('/api/books/:bookId/chapters', (req, res) => {
 
 app.put('/api/chapters/:id', (req, res) => {
   const id     = Number(req.params.id);
-  const fields = pick(['title', 'plot', 'content', 'order_index'], req.body);
+  const fields = pick(['title', 'plot', 'content', 'order_index', 'word_goal', 'page_goal'], req.body);
   if (Object.keys(fields).length) {
     const sets = Object.keys(fields).map(k => `${k} = @${k}`).join(', ');
     db.prepare(`UPDATE chapters SET ${sets}, updated_at = datetime('now') WHERE id = @id`).run({ ...fields, id });

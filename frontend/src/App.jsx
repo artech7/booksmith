@@ -1,11 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from './api.js';
 import Sidebar      from './components/Sidebar.jsx';
 import StoryEditor  from './components/StoryEditor.jsx';
 import WorldBuilder from './components/WorldBuilder.jsx';
 import Settings     from './components/Settings.jsx';
 import Export       from './components/Export.jsx';
+import Goals        from './components/Goals.jsx';
 import { IconCtx }  from './Icons.jsx';
+import { useWritingProgress } from './hooks/useWritingProgress.js';
+
+const countWords = (text) => (text || '').trim() ? (text || '').trim().split(/\s+/).length : 0;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +45,10 @@ export default function App() {
   const [saveStatus, setSaveStatus] = useState('saved');
   const [showSettings,setShowSettings] = useState(false);
   const [showExport,  setShowExport]   = useState(false);
+  const [showGoals,   setShowGoals]    = useState(false);
+
+  const { data: wpData, trackWords, setGoal: setTimeGoal } = useWritingProgress();
+  const lastWordCounts = useRef({}); // chapterId → last known word count
 
   const p = loadPrefs();
   const [theme,     setThemeS]    = useState(p.theme     || 'dark');
@@ -78,6 +86,12 @@ export default function App() {
       setChapters(chs);
       setCharacters(chars.map(parseChar));
       setItems(its.map(parseItem));
+      // Initialize word count baselines for delta tracking
+      chs.forEach(ch => {
+        if (!(ch.id in lastWordCounts.current)) {
+          lastWordCounts.current[ch.id] = countWords(ch.content);
+        }
+      });
       if (chs.length > 0) setChapterId(chs[0].id);
     });
   }, [bookId]);
@@ -145,7 +159,15 @@ export default function App() {
     const updated = await api.updateChapter(id, data);
     setChapters(prev => prev.map(c => c.id === id ? updated : c));
     setSaveStatus('saved');
-  }, []);
+    // Track words added for time-based goals
+    if (typeof data.content === 'string') {
+      const newCount = countWords(data.content);
+      const oldCount = lastWordCounts.current[id] ?? newCount;
+      const delta    = newCount - oldCount;
+      if (delta > 0) trackWords(delta);
+      lastWordCounts.current[id] = newCount;
+    }
+  }, [trackWords]);
 
   const reorderChapters = async (bId, newArr) => {
     setChapters(newArr);
@@ -222,7 +244,8 @@ export default function App() {
             {book && (
               <button className="topbar-btn" onClick={() => setShowExport(true)}>↓ Export</button>
             )}
-            <button className="topbar-btn" onClick={() => setShowSettings(s => !s)}>⚙ Settings</button>
+            <button className="topbar-btn" onClick={() => { setShowGoals(g => !g); setShowSettings(false); }}>◎ Goals</button>
+            <button className="topbar-btn" onClick={() => { setShowSettings(s => !s); setShowGoals(false); }}>⚙ Settings</button>
           </div>
         )}
 
@@ -274,6 +297,18 @@ export default function App() {
           theme={theme} font={font} accent={accent} scale={scale} iconStyle={iconStyle}
           onTheme={setTheme} onFont={setFont} onAccent={setAccent} onScale={setScale} onIconStyle={setIconStyle}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+      {showGoals && (
+        <Goals
+          book={book}
+          chapter={chapter}
+          chapters={chapters}
+          onSaveBook={saveBook}
+          onSaveChapter={saveChapter}
+          progress={wpData}
+          onSetTimeGoal={setTimeGoal}
+          onClose={() => setShowGoals(false)}
         />
       )}
       {showExport && book && (

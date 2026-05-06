@@ -26,11 +26,21 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
   const [content, setContent] = useState(chapter.content ?? '');
   const [view,    setView]    = useState('edit');
   const [page,    setPage]    = useState(0);
-  const ref = useRef(null);
+
+  // Goal editing state (targets come from chapter prop, not local state)
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput,   setGoalInput]   = useState('');
+  const goalRef = useRef(null);
 
   const save = useDebounce((d) => onSave(chapter.id, d), 1100);
 
-  const onTitle   = (e) => { setTitle(e.target.value);   setSaveStatus('saving'); save({ title: e.target.value }); };
+  useEffect(() => {
+    setTitle(chapter.title     ?? '');
+    setContent(chapter.content ?? '');
+    setEditingGoal(false);
+  }, [chapter.id]);
+
+  const onTitle   = (e) => { setTitle(e.target.value);   setSaveStatus('saving'); save({ title:   e.target.value }); };
   const onContent = (e) => { setContent(e.target.value); setSaveStatus('saving'); save({ content: e.target.value }); };
 
   useEffect(() => {
@@ -39,6 +49,7 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
     return () => window.removeEventListener('keydown', h);
   }, [distractionFree, onToggleDistractionFree]);
 
+  // Stats
   const words  = content.trim() ? content.trim().split(/\s+/).length : 0;
   const chars  = content.length;
   const pages  = paginate(content);
@@ -47,6 +58,37 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
 
   useEffect(() => { if (page >= total) setPage(Math.max(0, total - 1)); }, [total]);
 
+  // Goal from chapter prop
+  const wordGoal = chapter.word_goal || 0;
+  const pageGoal = chapter.page_goal || 0;
+  const activeGoal = pageGoal > 0 ? pageGoal : wordGoal;
+  const goalUnit   = pageGoal > 0 ? 'pages' : 'words';
+  const goalCurrent= pageGoal > 0 ? total : words;
+  const pct        = activeGoal > 0 ? Math.min(100, (goalCurrent / activeGoal) * 100) : 0;
+  const goalDone   = activeGoal > 0 && goalCurrent >= activeGoal;
+
+  const openGoalEditor = () => {
+    setGoalInput(activeGoal > 0 ? String(activeGoal) : '');
+    setEditingGoal(true);
+    setTimeout(() => goalRef.current?.select(), 30);
+  };
+
+  const saveGoal = () => {
+    const val = Math.max(0, parseInt(goalInput) || 0);
+    setEditingGoal(false);
+    setSaveStatus('saving');
+    // Save to whichever goal type is active; if none active, default to word goal
+    if (pageGoal > 0) onSave(chapter.id, { page_goal: val });
+    else              onSave(chapter.id, { word_goal: val });
+    setSaveStatus('saved');
+  };
+
+  const clearGoal = (e) => {
+    e.stopPropagation();
+    setEditingGoal(false);
+    onSave(chapter.id, { word_goal: 0, page_goal: 0 });
+  };
+
   const switchView = (v) => { setView(v); if (v === 'pages') setPage(0); onFocusChange(false); };
 
   return (
@@ -54,19 +96,13 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
 
       {/* Title row */}
       <div className="editor-header">
-        <input
-          className="editor-title"
-          value={title}
-          onChange={onTitle}
-          placeholder="Chapter title…"
-          spellCheck
-        />
+        <input className="editor-title" value={title} onChange={onTitle} placeholder="Chapter title…" spellCheck />
         <div className="editor-controls">
           <div className="view-toggle">
             <button className={`view-btn ${view === 'edit'  ? 'active' : ''}`} onClick={() => switchView('edit')}>✎ Edit</button>
             <button className={`view-btn ${view === 'pages' ? 'active' : ''}`} onClick={() => switchView('pages')}>◫ Pages</button>
           </div>
-          <button className={`btn btn-sm ${distractionFree ? 'btn-accent' : ''}`} onClick={onToggleDistractionFree} title="Toggle distraction-free mode">
+          <button className={`btn btn-sm ${distractionFree ? 'btn-accent' : ''}`} onClick={onToggleDistractionFree}>
             {distractionFree ? '◈ Exit Focus' : '◈ Focus'}
           </button>
         </div>
@@ -78,7 +114,6 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
       <div className="editor-body">
         {view === 'edit' ? (
           <textarea
-            ref={ref}
             className="story-textarea"
             value={content}
             onChange={onContent}
@@ -99,11 +134,54 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
         )}
       </div>
 
-      {/* Footer — always visible */}
-      <div className="editor-footer">
-        <span className="stats">
-          {words.toLocaleString()} {words === 1 ? 'word' : 'words'} · {chars.toLocaleString()} chars · {pgText}
-        </span>
+      {/* Footer — always visible, position:relative for progress bar */}
+      <div className="editor-footer" style={{ position: 'relative' }}>
+
+        {/* Stats / goal area */}
+        {editingGoal ? (
+          <div className="goal-edit-row">
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>Goal:</span>
+            <input
+              ref={goalRef}
+              className="goal-input"
+              type="number"
+              min="0"
+              value={goalInput}
+              onChange={e => setGoalInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter')  saveGoal();
+                if (e.key === 'Escape') setEditingGoal(false);
+              }}
+              placeholder="word count"
+              autoFocus
+            />
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>words</span>
+            <button className="goal-action-btn goal-confirm" onClick={saveGoal} title="Set goal">✓</button>
+            <button className="goal-action-btn goal-cancel"  onClick={() => setEditingGoal(false)} title="Cancel">✗</button>
+            {wordGoal > 0 && (
+              <button className="goal-action-btn goal-clear" onClick={clearGoal} title="Clear goal">Clear</button>
+            )}
+          </div>
+        ) : (
+          <span
+            className={`stats ${wordGoal > 0 ? 'stats-clickable' : ''}`}
+            onClick={openGoalEditor}
+            title={wordGoal > 0 ? 'Click to edit goal' : 'Click to set a word goal'}
+          >
+            {activeGoal > 0 ? (
+              <>
+                <span style={{ color: goalDone ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  {goalCurrent.toLocaleString()}
+                </span>
+                <span style={{ color: 'var(--text-faint)' }}> / {activeGoal.toLocaleString()} {goalUnit}</span>
+                {goalDone && <span style={{ color: 'var(--accent)', marginLeft: '4px' }}>✦</span>}
+              </>
+            ) : (
+              <>{words.toLocaleString()} {words === 1 ? 'word' : 'words'}</>
+            )}
+            {' · '}{chars.toLocaleString()} chars · {pgText}
+          </span>
+        )}
 
         {view === 'pages' && (
           <>
@@ -117,6 +195,18 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
         )}
 
         <div className="footer-spacer" />
+
+        {/* Subtle progress bar — bottom edge of footer */}
+        {activeGoal > 0 && (
+          <div style={{
+            position: 'absolute', bottom: 0, left: 0,
+            height: '2px', width: `${pct}%`,
+            background: goalDone ? '#7a9e7e' : 'var(--accent)',
+            opacity: goalDone ? 0.9 : 0.6,
+            transition: 'width 0.5s ease, background 0.4s, opacity 0.4s',
+            borderRadius: '0 2px 2px 0', pointerEvents: 'none',
+          }} />
+        )}
       </div>
 
     </div>
