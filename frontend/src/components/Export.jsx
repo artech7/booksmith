@@ -1,11 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
-import { CATEGORIES } from './Items.jsx';
+import { Ico } from '../Icons.jsx';
+
+// ── Category definitions — mirrors WorldBuilder nav exactly ──────────────────
+
+const WORLD_CATS = [
+  { id: 'history',  label: 'History & Lore', icon: 'History'   },
+  { id: 'location', label: 'Locations',       icon: 'Location'  },
+  { id: 'faction',  label: 'Factions',        icon: 'Factions'  },
+  { id: 'creature', label: 'Creatures',       icon: 'Creatures' },
+];
+
+const ITEM_CATS = [
+  { id: 'key',      label: 'Key Items',  icon: 'KeyItems'  },
+  { id: 'weapon',   label: 'Weapons',    icon: 'Weapons'   },
+  { id: 'artifact', label: 'Artifacts',  icon: 'Artifacts' },
+  { id: 'other',    label: 'Other',      icon: 'Other'     },
+];
+
+const ALL_CATS = [...WORLD_CATS, ...ITEM_CATS];
 
 const FORMATS = [
-  { id: 'docx', label: 'Document', ext: '.docx', hint: 'Word / LibreOffice' },
-  { id: 'md',   label: 'Markdown', ext: '.md',   hint: 'Obsidian, Notion…' },
-  { id: 'txt',  label: 'Plain Text', ext: '.txt', hint: 'Universal'        },
-  { id: 'json', label: 'JSON Data',  ext: '.json', hint: 'Backup / import' },
+  { id: 'docx', label: 'Document',   ext: '.docx' },
+  { id: 'md',   label: 'Markdown',   ext: '.md'   },
+  { id: 'txt',  label: 'Plain Text', ext: '.txt'  },
+  { id: 'json', label: 'JSON Data',  ext: '.json' },
 ];
 
 // ── Generators ────────────────────────────────────────────────────────────────
@@ -13,11 +31,11 @@ const FORMATS = [
 function toMarkdown(sel, book, chapters, characters, items) {
   const lines = [];
 
-  if (sel.bookTitle || sel.bookPlot) {
-    if (sel.bookTitle) lines.push(`# ${book.title}`, '');
-    if (sel.bookPlot && book.plot) lines.push('## Story Overview', '', book.plot, '');
-  }
+  // Story Bible
+  if (sel.bookTitle) lines.push(`# ${book.title}`, '');
+  if (sel.bookPlot && book.plot) lines.push('## Story Overview', '', book.plot, '');
 
+  // Chapters
   if (sel.chapters.length > 0) {
     for (const ch of chapters) {
       if (!sel.chapters.includes(ch.id)) continue;
@@ -27,6 +45,7 @@ function toMarkdown(sel, book, chapters, characters, items) {
     }
   }
 
+  // World — Characters
   if (sel.characters && characters.length > 0) {
     lines.push('## Cast of Characters', '');
     for (const c of characters) {
@@ -45,26 +64,21 @@ function toMarkdown(sel, book, chapters, characters, items) {
     }
   }
 
-  if (sel.items.length > 0) {
-    const filtered = items.filter(i => sel.items.includes(i.category));
-    if (filtered.length > 0) {
-      lines.push('## World Items', '');
-      for (const cat of CATEGORIES) {
-        const catItems = filtered.filter(i => i.category === cat.id);
-        if (catItems.length === 0) continue;
-        lines.push(`### ${cat.label}`, '');
-        for (const it of catItems) {
-          lines.push(`#### ${it.name}`);
-          if (it.description) lines.push('', it.description);
-          if (it.significance) lines.push('', `*Story significance:* ${it.significance}`);
-          const assoc = typeof it.associated === 'string' ? JSON.parse(it.associated || '[]') : (it.associated ?? []);
-          if (assoc.length > 0) {
-            const names = assoc.map(id => characters.find(c => c.id === id)?.name).filter(Boolean);
-            if (names.length > 0) lines.push('', `*Associated characters:* ${names.join(', ')}`);
-          }
-          lines.push('');
-        }
-      }
+  // World + Items by category
+  const catOrder = [...WORLD_CATS, ...ITEM_CATS];
+  for (const cat of catOrder) {
+    if (!sel.cats.includes(cat.id)) continue;
+    const catItems = items.filter(i => i.category === cat.id);
+    if (catItems.length === 0) continue;
+    lines.push(`## ${cat.label}`, '');
+    for (const it of catItems) {
+      lines.push(`### ${it.name}`);
+      if (it.description)  lines.push('', it.description);
+      if (it.significance) lines.push('', `*Significance:* ${it.significance}`);
+      const assoc = Array.isArray(it.associated) ? it.associated : JSON.parse(it.associated || '[]');
+      const assocNames = assoc.map(id => characters.find(c => c.id === id)?.name).filter(Boolean);
+      if (assocNames.length) lines.push('', `*Associated:* ${assocNames.join(', ')}`);
+      lines.push('');
     }
   }
 
@@ -88,50 +102,37 @@ function toJSON(sel, book, chapters, characters, items) {
   if (sel.chapters.length > 0) {
     out.chapters = chapters
       .filter(c => sel.chapters.includes(c.id))
-      .map(c => ({
-        title:   c.title,
-        content: c.content,
-        ...(sel.chapterPlots ? { plot: c.plot } : {}),
-      }));
+      .map(c => ({ title: c.title, content: c.content, ...(sel.chapterPlots ? { plot: c.plot } : {}) }));
   }
   if (sel.characters) out.characters = characters;
-  if (sel.items.length > 0) {
-    out.items = items.filter(i => sel.items.includes(i.category));
-  }
+  if (sel.cats.length > 0) out.worldItems = items.filter(i => sel.cats.includes(i.category));
   return JSON.stringify(out, null, 2);
 }
-
-// ── Download helper ───────────────────────────────────────────────────────────
 
 function download(filename, text) {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url; a.download = filename;
-  a.click();
+  a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
-// ── CheckItem ─────────────────────────────────────────────────────────────────
+// ── Custom checkbox ───────────────────────────────────────────────────────────
 
-function CheckItem({ label, sub, checked, onChange }) {
+function CheckItem({ label, sub, icon, checked, onChange, indent = false }) {
   return (
     <label
       className={`ex-check ${checked ? 'on' : ''}`}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: 'pointer', paddingLeft: indent ? '22px' : undefined }}
       onClick={() => onChange(!checked)}
     >
-      {/* Custom checkbox */}
       <span style={{
         flexShrink: 0,
-        width: '14px',
-        height: '14px',
+        width: '14px', height: '14px',
         borderRadius: '3px',
         border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--glass-border-hl)'}`,
         background: checked ? 'var(--accent)' : 'var(--input-bg)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'background 0.15s, border-color 0.15s',
         marginRight: '2px',
       }}>
@@ -141,6 +142,11 @@ function CheckItem({ label, sub, checked, onChange }) {
           </svg>
         )}
       </span>
+      {icon && (
+        <span style={{ color: 'var(--accent)', opacity: checked ? 1 : 0.5, flexShrink: 0 }}>
+          <Ico name={icon} size={13} />
+        </span>
+      )}
       <span className="ex-check-label">
         {label}
         {sub && <span className="ex-check-sub"> — {sub}</span>}
@@ -149,44 +155,54 @@ function CheckItem({ label, sub, checked, onChange }) {
   );
 }
 
+// ── Section header ────────────────────────────────────────────────────────────
+
+function ExSection({ label, onSelectAll, allSelected }) {
+  return (
+    <div className="ex-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span>{label}</span>
+      {onSelectAll && (
+        <button className="ex-selall" onClick={onSelectAll}>
+          {allSelected ? 'Deselect all' : 'Select all'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Export Modal ──────────────────────────────────────────────────────────────
 
 export default function Export({ book, chapters, characters, items, onClose }) {
   const ref = useRef(null);
-
   const [format,       setFormat]       = useState('md');
   const [bookTitle,    setBookTitle]    = useState(true);
   const [bookPlot,     setBookPlot]     = useState(true);
   const [selChapters,  setSelChapters]  = useState(chapters.map(c => c.id));
   const [chapterPlots, setChapterPlots] = useState(true);
   const [incChars,     setIncChars]     = useState(true);
-  const [selItemCats,  setSelItemCats]  = useState(CATEGORIES.map(c => c.id));
+  const [selWorldCats, setSelWorldCats] = useState(WORLD_CATS.map(c => c.id));
+  const [selItemCats,  setSelItemCats]  = useState(ITEM_CATS.map(c => c.id));
+  const [exporting,    setExporting]    = useState(false);
 
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
   }, [onClose]);
 
-  const toggleChapter = (id) =>
-    setSelChapters(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleChapter  = (id) => setSelChapters(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleWorldCat = (id) => setSelWorldCats(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleItemCat  = (id) => setSelItemCats(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
-  const toggleCat = (id) =>
-    setSelItemCats(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const allChapters  = selChapters.length  === chapters.length;
+  const allWorldCats = selWorldCats.length === WORLD_CATS.length;
+  const allItemCats  = selItemCats.length  === ITEM_CATS.length;
 
-  const allChapters  = selChapters.length === chapters.length;
-  const allCats      = selItemCats.length === CATEGORIES.length;
-
-  const [exporting, setExporting] = useState(false);
+  const catCount = (id) => items.filter(i => i.category === id).length;
 
   const handleExport = async () => {
-    const sel = {
-      bookTitle, bookPlot,
-      chapters:     selChapters,
-      chapterPlots,
-      characters:   incChars,
-      items:        selItemCats,
-    };
+    const allSelectedCats = [...selWorldCats, ...selItemCats];
+    const sel = { bookTitle, bookPlot, chapters: selChapters, chapterPlots, characters: incChars, cats: allSelectedCats };
     const slug = book.title.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
     const fmt  = FORMATS.find(f => f.id === format);
 
@@ -197,12 +213,11 @@ export default function Export({ book, chapters, characters, items, onClose }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            bookTitle,
-            bookPlot,
-            chapterIds:    selChapters,
+            bookTitle, bookPlot,
+            chapterIds:     selChapters,
             chapterPlots,
-            includeChars:  incChars,
-            itemCategories: selItemCats,
+            includeChars:   incChars,
+            itemCategories: allSelectedCats,
           }),
         });
         if (!res.ok) throw new Error('Export failed');
@@ -224,12 +239,11 @@ export default function Export({ book, chapters, characters, items, onClose }) {
     if (format === 'md')   content = toMarkdown(sel, book, chapters, characters, items);
     if (format === 'txt')  content = toPlainText(sel, book, chapters, characters, items);
     if (format === 'json') content = toJSON(sel, book, chapters, characters, items);
-
     download(`${slug}${fmt.ext}`, content);
     onClose();
   };
 
-  const nothingSelected = !bookTitle && !bookPlot && selChapters.length === 0 && !incChars && selItemCats.length === 0;
+  const nothingSelected = !bookTitle && !bookPlot && selChapters.length === 0 && !incChars && selWorldCats.length === 0 && selItemCats.length === 0;
 
   return (
     <div className="modal-backdrop">
@@ -244,12 +258,12 @@ export default function Export({ book, chapters, characters, items, onClose }) {
 
         <div className="modal-body">
 
-          {/* ── Book overview ── */}
+          {/* ── Story Bible ── */}
           <div>
-            <div className="ex-label">Book Overview</div>
+            <ExSection label="Story Bible" />
             <div className="ex-checks">
-              <CheckItem label="Book title" checked={bookTitle} onChange={setBookTitle} />
-              <CheckItem label="Story overview / plot" sub={book.plot ? `${book.plot.slice(0,60)}…` : 'empty'} checked={bookPlot} onChange={setBookPlot} />
+              <CheckItem label="Book title"          checked={bookTitle} onChange={setBookTitle} />
+              <CheckItem label="Book overview / plot" sub={book.plot ? `${book.plot.slice(0, 55)}…` : 'empty'} checked={bookPlot} onChange={setBookPlot} />
             </div>
           </div>
 
@@ -257,12 +271,11 @@ export default function Export({ book, chapters, characters, items, onClose }) {
 
           {/* ── Chapters ── */}
           <div>
-            <div className="ex-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Chapters</span>
-              <button className="ex-selall" onClick={() =>
-                setSelChapters(allChapters ? [] : chapters.map(c => c.id))
-              }>{allChapters ? 'Deselect all' : 'Select all'}</button>
-            </div>
+            <ExSection
+              label="Chapters"
+              onSelectAll={() => setSelChapters(allChapters ? [] : chapters.map(c => c.id))}
+              allSelected={allChapters}
+            />
             {chapters.length === 0 ? (
               <div style={{ fontSize: '12px', color: 'var(--text-faint)', fontStyle: 'italic', padding: '4px 10px' }}>No chapters yet</div>
             ) : (
@@ -278,9 +291,10 @@ export default function Export({ book, chapters, characters, items, onClose }) {
                 ))}
                 {selChapters.length > 0 && (
                   <CheckItem
-                    label="Include chapter plot notes"
+                    label="Include chapter notes"
                     checked={chapterPlots}
                     onChange={setChapterPlots}
+                    indent
                   />
                 )}
               </div>
@@ -289,16 +303,35 @@ export default function Export({ book, chapters, characters, items, onClose }) {
 
           <div className="ex-div" />
 
-          {/* ── Characters ── */}
+          {/* ── World ── */}
           <div>
-            <div className="ex-label">Characters</div>
+            <ExSection
+              label="World"
+              onSelectAll={() => {
+                const worldOn = allWorldCats;
+                setSelWorldCats(worldOn ? [] : WORLD_CATS.map(c => c.id));
+                if (!worldOn) setIncChars(true);
+              }}
+              allSelected={allWorldCats && incChars}
+            />
             <div className="ex-checks">
               <CheckItem
-                label="Cast of Characters"
+                icon="Characters"
+                label="Characters"
                 sub={`${characters.length} character${characters.length !== 1 ? 's' : ''}`}
                 checked={incChars}
                 onChange={setIncChars}
               />
+              {WORLD_CATS.map(cat => (
+                <CheckItem
+                  key={cat.id}
+                  icon={cat.icon}
+                  label={cat.label}
+                  sub={`${catCount(cat.id)} entr${catCount(cat.id) !== 1 ? 'ies' : 'y'}`}
+                  checked={selWorldCats.includes(cat.id)}
+                  onChange={() => toggleWorldCat(cat.id)}
+                />
+              ))}
             </div>
           </div>
 
@@ -306,25 +339,22 @@ export default function Export({ book, chapters, characters, items, onClose }) {
 
           {/* ── Items ── */}
           <div>
-            <div className="ex-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>World Items</span>
-              <button className="ex-selall" onClick={() =>
-                setSelItemCats(allCats ? [] : CATEGORIES.map(c => c.id))
-              }>{allCats ? 'Deselect all' : 'Select all'}</button>
-            </div>
+            <ExSection
+              label="Items"
+              onSelectAll={() => setSelItemCats(allItemCats ? [] : ITEM_CATS.map(c => c.id))}
+              allSelected={allItemCats}
+            />
             <div className="ex-checks">
-              {CATEGORIES.map(cat => {
-                const count = items.filter(i => i.category === cat.id).length;
-                return (
-                  <CheckItem
-                    key={cat.id}
-                    label={`${cat.icon} ${cat.label}`}
-                    sub={`${count} item${count !== 1 ? 's' : ''}`}
-                    checked={selItemCats.includes(cat.id)}
-                    onChange={() => toggleCat(cat.id)}
-                  />
-                );
-              })}
+              {ITEM_CATS.map(cat => (
+                <CheckItem
+                  key={cat.id}
+                  icon={cat.icon}
+                  label={cat.label}
+                  sub={`${catCount(cat.id)} item${catCount(cat.id) !== 1 ? 's' : ''}`}
+                  checked={selItemCats.includes(cat.id)}
+                  onChange={() => toggleItemCat(cat.id)}
+                />
+              ))}
             </div>
           </div>
 
@@ -332,20 +362,14 @@ export default function Export({ book, chapters, characters, items, onClose }) {
 
         {/* ── Footer ── */}
         <div className="modal-foot">
-          {/* Format picker — full width row */}
           <div className="fmt-row">
             {FORMATS.map(f => (
-              <button
-                key={f.id}
-                className={`fmt-btn ${format === f.id ? 'active' : ''}`}
-                onClick={() => setFormat(f.id)}
-              >
+              <button key={f.id} className={`fmt-btn ${format === f.id ? 'active' : ''}`} onClick={() => setFormat(f.id)}>
                 {f.label}
                 <span className="fmt-ext">{f.ext}</span>
               </button>
             ))}
           </div>
-          {/* Action buttons row */}
           <div className="modal-foot-actions">
             <button className="btn" onClick={onClose}>Cancel</button>
             <button
