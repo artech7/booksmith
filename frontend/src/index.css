@@ -1071,3 +1071,44 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
   gap: 8px;
   flex-shrink: 0;
 }
+
+/* ── Icon style picker ───────────────────────────────────────── */
+.icon-style-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.icon-style-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: var(--input-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.icon-style-btn:hover { background: var(--glass-hover); color: var(--text); }
+.icon-style-btn.active {
+  background: var(--glass-active);
+  border-color: var(--glass-border-hl);
+  color: var(--accent);
+}
+
+.icon-style-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  color: var(--accent);
+}
+
+.icon-style-label {
+  font-size: 10.5px;
+  font-family: var(--font-ui);
+  letter-spacing: 0.04em;
+}

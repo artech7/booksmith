@@ -5,6 +5,7 @@ import StoryEditor  from './components/StoryEditor.jsx';
 import WorldBuilder from './components/WorldBuilder.jsx';
 import Settings     from './components/Settings.jsx';
 import Export       from './components/Export.jsx';
+import { IconCtx }  from './Icons.jsx';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -42,18 +43,20 @@ export default function App() {
   const [showExport,  setShowExport]   = useState(false);
 
   const p = loadPrefs();
-  const [theme,  setThemeS]  = useState(p.theme  || 'dark');
-  const [font,   setFontS]   = useState(p.font   || 'crimson');
-  const [accent, setAccentS] = useState(p.accent || 'gold');
-  const [scale,  setScaleS]  = useState(p.scale  || 1.00);
+  const [theme,     setThemeS]    = useState(p.theme     || 'dark');
+  const [font,      setFontS]     = useState(p.font      || 'crimson');
+  const [accent,    setAccentS]   = useState(p.accent    || 'gold');
+  const [scale,     setScaleS]    = useState(p.scale     || 1.00);
+  const [iconStyle, setIconStyleS]= useState(p.iconStyle || 'wireframe');
 
   useEffect(() => { document.body.className = `theme-${theme} font-${font} accent-${accent}`; }, [theme, font, accent]);
   useEffect(() => { document.getElementById('root').style.zoom = scale; }, [scale]);
 
-  const setTheme  = (v) => { setThemeS(v);  savePrefs({ ...loadPrefs(), theme:  v }); };
-  const setFont   = (v) => { setFontS(v);   savePrefs({ ...loadPrefs(), font:   v }); };
-  const setAccent = (v) => { setAccentS(v); savePrefs({ ...loadPrefs(), accent: v }); };
-  const setScale  = (v) => { setScaleS(v);  savePrefs({ ...loadPrefs(), scale:  v }); };
+  const setTheme     = (v) => { setThemeS(v);     savePrefs({ ...loadPrefs(), theme:     v }); };
+  const setFont      = (v) => { setFontS(v);      savePrefs({ ...loadPrefs(), font:      v }); };
+  const setAccent    = (v) => { setAccentS(v);    savePrefs({ ...loadPrefs(), accent:    v }); };
+  const setScale     = (v) => { setScaleS(v);     savePrefs({ ...loadPrefs(), scale:     v }); };
+  const setIconStyle = (v) => { setIconStyleS(v); savePrefs({ ...loadPrefs(), iconStyle: v }); };
 
   const book    = books.find(b => b.id === bookId)      ?? null;
   const chapter = chapters.find(c => c.id === chapterId) ?? null;
@@ -85,7 +88,17 @@ export default function App() {
   }, [bookId, chapterId]);
 
   // ── Book handlers ─────────────────────────────────────────────────────────
-  const selectBook = (id) => { setBookId(id); setChapterId(null); setTab('worldbuilder'); };
+  const selectBook = (id) => {
+    setBookId(id);
+    setChapterId(null);
+    // Only change tab if not already in world builder
+    if (tab !== 'worldbuilder') setTab('worldbuilder');
+  };
+
+  const selectChapter = (id) => {
+    setChapterId(id);
+    if (tab !== 'worldbuilder') setTab('story');
+  };
 
   const addBook = async () => {
     const b = await api.createBook('Untitled Book');
@@ -113,7 +126,6 @@ export default function App() {
   };
 
   // ── Chapter handlers ──────────────────────────────────────────────────────
-  const selectChapter = (id) => { setChapterId(id); setTab('story'); };
 
   const addChapter = async () => {
     if (!bookId) return;
@@ -185,6 +197,7 @@ export default function App() {
   const appClass = ['app', focusMode && !dfMode ? 'focus-active' : '', dfMode ? 'df-mode' : ''].filter(Boolean).join(' ');
 
   return (
+    <IconCtx.Provider value={iconStyle}>
     <div className={appClass}>
       <Sidebar
         books={books} selectedBookId={bookId}
@@ -258,8 +271,8 @@ export default function App() {
 
       {showSettings && (
         <Settings
-          theme={theme} font={font} accent={accent} scale={scale}
-          onTheme={setTheme} onFont={setFont} onAccent={setAccent} onScale={setScale}
+          theme={theme} font={font} accent={accent} scale={scale} iconStyle={iconStyle}
+          onTheme={setTheme} onFont={setFont} onAccent={setAccent} onScale={setScale} onIconStyle={setIconStyle}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -270,5 +283,6 @@ export default function App() {
         />
       )}
     </div>
+    </IconCtx.Provider>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { Ico } from '../Icons.jsx';
 
 const FONTS = [
   { id: 'crimson',      label: 'Crimson Pro',    style: { fontFamily: "'Crimson Pro', Georgia, serif" } },
@@ -6,8 +7,8 @@ const FONTS = [
   { id: 'lora',         label: 'Lora',           style: { fontFamily: "'Lora', Georgia, serif" } },
   { id: 'merriweather', label: 'Merriweather',   style: { fontFamily: "'Merriweather', Georgia, serif" } },
   { id: 'sourceserif',  label: 'Source Serif 4', style: { fontFamily: "'Source Serif 4', Georgia, serif" } },
-  { id: 'georgia',      label: 'Georgia',        style: { fontFamily: "Georgia, serif" } },
-  { id: 'palatino',     label: 'Palatino',       style: { fontFamily: "Palatino, serif" } },
+  { id: 'georgia',      label: 'Georgia',        style: { fontFamily: 'Georgia, serif' } },
+  { id: 'palatino',     label: 'Palatino',       style: { fontFamily: 'Palatino, serif' } },
   { id: 'inter',        label: 'Inter',          style: { fontFamily: "'Inter', system-ui, sans-serif" } },
 ];
 
@@ -28,7 +29,14 @@ const SCALES = [
   { id: 1.20, label: 'XL' },
 ];
 
-export default function Settings({ theme, font, accent, scale, onTheme, onFont, onAccent, onScale, onClose }) {
+const ICON_STYLES = [
+  { id: 'classic',   label: 'Classic',   preview: '◈ ○ ◆' },
+  { id: 'minimal',   label: 'Minimal',   previewIcon: true  },
+  { id: 'wireframe', label: 'Wireframe', previewIcon: true  },
+  { id: 'bold',      label: 'Bold',      previewIcon: true  },
+];
+
+export default function Settings({ theme, font, accent, scale, iconStyle, onTheme, onFont, onAccent, onScale, onIconStyle, onClose }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -41,6 +49,7 @@ export default function Settings({ theme, font, accent, scale, onTheme, onFont, 
     <div className="settings-overlay">
       <div className="settings-panel" ref={ref}>
 
+        {/* Theme */}
         <div>
           <div className="s-label">Theme</div>
           <div className="theme-row">
@@ -51,6 +60,7 @@ export default function Settings({ theme, font, accent, scale, onTheme, onFont, 
 
         <div className="s-divider" />
 
+        {/* UI Scale */}
         <div>
           <div className="s-label">
             <span>UI Scale</span>
@@ -67,6 +77,34 @@ export default function Settings({ theme, font, accent, scale, onTheme, onFont, 
 
         <div className="s-divider" />
 
+        {/* Icon Style */}
+        <div>
+          <div className="s-label">Icon Style</div>
+          <div className="icon-style-grid">
+            {ICON_STYLES.map(is => (
+              <button
+                key={is.id}
+                className={`icon-style-btn ${iconStyle === is.id ? 'active' : ''}`}
+                onClick={() => onIconStyle(is.id)}
+              >
+                <span className="icon-style-preview">
+                  {is.id === 'classic'
+                    ? <span style={{ fontSize: '12px', letterSpacing: '2px' }}>◈ ○</span>
+                    : <>
+                        <Ico name="Location" size={14} style={is.id} />
+                        <Ico name="Characters" size={14} style={is.id} />
+                      </>
+                  }
+                </span>
+                <span className="icon-style-label">{is.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="s-divider" />
+
+        {/* Accent color */}
         <div>
           <div className="s-label">Accent Color</div>
           <div className="color-grid">
@@ -81,6 +119,7 @@ export default function Settings({ theme, font, accent, scale, onTheme, onFont, 
 
         <div className="s-divider" />
 
+        {/* Font */}
         <div>
           <div className="s-label">Text Style</div>
           <div className="font-list">
