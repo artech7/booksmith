@@ -6,6 +6,31 @@ BookSmith is a distraction-free writing tool you can run on your own server or h
 
 ---
 
+## Screenshots
+
+### Story Editor
+![Story editor with chapter open](docs/images/editor.png)
+
+### Distraction-Free Mode
+![Distraction-free writing mode](docs/images/focus-mode.png)
+
+### World Builder — Characters
+![World builder characters section](docs/images/worldbuilder-characters.png)
+
+### World Builder — Locations
+![World builder locations section](docs/images/worldbuilder-locations.png)
+
+### Writing Goals
+![Goals panel showing chapter, book, and time-based goals](docs/images/goals.png)
+
+### Settings
+![Settings panel showing theme, accent, icon, and font options](docs/images/settings.png)
+
+### Export
+![Export modal with selective section controls](docs/images/export.png)
+
+---
+
 ## Features
 
 ### Writing
