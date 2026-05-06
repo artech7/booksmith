@@ -24,14 +24,14 @@ export const api = {
   deleteChapter:  (id)            => del(`${BASE}/chapters/${id}`),
 
   // Characters
-  getCharacters:   (bookId)      => fetch(`${BASE}/books/${bookId}/characters`).then(json),
-  createCharacter: (bookId, name) => post(`${BASE}/books/${bookId}/characters`, { name }),
-  updateCharacter: (id, data)     => put(`${BASE}/characters/${id}`, data),
-  deleteCharacter: (id)           => del(`${BASE}/characters/${id}`),
+  getCharacters:   (bookId)                    => fetch(`${BASE}/books/${bookId}/characters`).then(json),
+  createCharacter: (bookId, name, chapter_ids) => post(`${BASE}/books/${bookId}/characters`, { name, chapter_ids: chapter_ids || [] }),
+  updateCharacter: (id, data)                  => put(`${BASE}/characters/${id}`, data),
+  deleteCharacter: (id)                        => del(`${BASE}/characters/${id}`),
 
   // Items
-  getItems:   (bookId)               => fetch(`${BASE}/books/${bookId}/items`).then(json),
-  createItem: (bookId, name, cat)    => post(`${BASE}/books/${bookId}/items`, { name, category: cat }),
-  updateItem: (id, data)             => put(`${BASE}/items/${id}`, data),
-  deleteItem: (id)                   => del(`${BASE}/items/${id}`),
+  getItems:   (bookId)                              => fetch(`${BASE}/books/${bookId}/items`).then(json),
+  createItem: (bookId, name, cat, chapter_ids)      => post(`${BASE}/books/${bookId}/items`, { name, category: cat, chapter_ids: chapter_ids || [] }),
+  updateItem: (id, data)                            => put(`${BASE}/items/${id}`, data),
+  deleteItem: (id)                                  => del(`${BASE}/items/${id}`),
 };

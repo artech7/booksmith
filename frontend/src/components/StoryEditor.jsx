@@ -61,9 +61,14 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
           placeholder="Chapter title…"
           spellCheck
         />
-        <div className="view-toggle">
-          <button className={`view-btn ${view === 'edit'  ? 'active' : ''}`} onClick={() => switchView('edit')}>✎ Edit</button>
-          <button className={`view-btn ${view === 'pages' ? 'active' : ''}`} onClick={() => switchView('pages')}>◫ Pages</button>
+        <div className="editor-controls">
+          <div className="view-toggle">
+            <button className={`view-btn ${view === 'edit'  ? 'active' : ''}`} onClick={() => switchView('edit')}>✎ Edit</button>
+            <button className={`view-btn ${view === 'pages' ? 'active' : ''}`} onClick={() => switchView('pages')}>◫ Pages</button>
+          </div>
+          <button className={`btn btn-sm ${distractionFree ? 'btn-accent' : ''}`} onClick={onToggleDistractionFree} title="Toggle distraction-free mode">
+            {distractionFree ? '◈ Exit Focus' : '◈ Focus'}
+          </button>
         </div>
       </div>
 
@@ -112,10 +117,6 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
         )}
 
         <div className="footer-spacer" />
-
-        <button className={`btn btn-sm ${distractionFree ? 'btn-accent' : ''}`} onClick={onToggleDistractionFree}>
-          {distractionFree ? '◈ exit focus' : '◈ focus mode'}
-        </button>
       </div>
 
     </div>
