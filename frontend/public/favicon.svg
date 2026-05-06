@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #08080f; }
+      .mark { fill: #c8a96e; }
+    }
+    @media (prefers-color-scheme: light) {
+      .bg { fill: #f0ebe0; }
+      .mark { fill: #8a6020; }
+    }
+  </style>
+  <rect class="bg" width="64" height="64" rx="14"/>
+  <text class="mark" x="32" y="47" font-family="Georgia, serif" font-size="44" font-weight="400" text-anchor="middle">✦</text>
+</svg>
