@@ -744,12 +744,11 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
 .modal-foot { flex-shrink: 0; padding: 14px 26px 18px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .ex-label { font-size: 9.5px; letter-spacing: 0.17em; text-transform: uppercase; color: var(--text-faint); font-family: var(--font-ui); margin-bottom: 6px; display: flex; justify-content: space-between; }
-.ex-checks { display: flex; flex-direction: column; gap: 4px; }
-.ex-check { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border-radius: 7px; border: 1px solid transparent; cursor: pointer; transition: background 0.12s; }
+.ex-checks { display: flex; flex-direction: column; gap: 3px; }
+.ex-check { display: flex; align-items: center; gap: 11px; padding: 6px 10px; border-radius: 7px; border: 1px solid transparent; cursor: pointer; transition: background 0.12s; user-select: none; }
 .ex-check:hover { background: var(--glass-hover); }
 .ex-check.on { background: var(--glass-active); border-color: var(--glass-border-hl); }
-.ex-check input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--accent); flex-shrink: 0; }
-.ex-check-label { font-size: 13.5px; color: var(--text-muted); font-family: var(--font-body); flex: 1; }
+.ex-check-label { font-size: 13px; color: var(--text-muted); font-family: var(--font-body); flex: 1; line-height: 1.3; }
 .ex-check.on .ex-check-label { color: var(--text); }
 .ex-check-sub { font-size: 11px; color: var(--text-faint); font-family: var(--font-ui); }
 .ex-div { height: 1px; background: var(--glass-border); }

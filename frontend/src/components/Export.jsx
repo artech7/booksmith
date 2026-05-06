@@ -116,8 +116,31 @@ function download(filename, text) {
 
 function CheckItem({ label, sub, checked, onChange }) {
   return (
-    <label className={`export-check-item ${checked ? 'checked' : ''}`}>
-      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+    <label
+      className={`ex-check ${checked ? 'on' : ''}`}
+      style={{ cursor: 'pointer' }}
+      onClick={() => onChange(!checked)}
+    >
+      {/* Custom checkbox */}
+      <span style={{
+        flexShrink: 0,
+        width: '14px',
+        height: '14px',
+        borderRadius: '3px',
+        border: `1.5px solid ${checked ? 'var(--accent)' : 'var(--glass-border-hl)'}`,
+        background: checked ? 'var(--accent)' : 'var(--input-bg)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'background 0.15s, border-color 0.15s',
+        marginRight: '2px',
+      }}>
+        {checked && (
+          <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="var(--bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="1.5 5 4 7.5 8.5 2"/>
+          </svg>
+        )}
+      </span>
       <span className="ex-check-label">
         {label}
         {sub && <span className="ex-check-sub"> — {sub}</span>}
