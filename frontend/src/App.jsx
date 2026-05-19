@@ -6,6 +6,7 @@ import WorldBuilder from './components/WorldBuilder.jsx';
 import Settings     from './components/Settings.jsx';
 import Export       from './components/Export.jsx';
 import Goals        from './components/Goals.jsx';
+import ConfirmModal from './components/ConfirmModal.jsx';
 import { IconCtx }  from './Icons.jsx';
 import { useWritingProgress } from './hooks/useWritingProgress.js';
 
@@ -43,9 +44,54 @@ export default function App() {
   const [focusMode,  setFocusMode]  = useState(false);
   const [dfMode,     setDfMode]     = useState(false);
   const [saveStatus, setSaveStatus] = useState('saved');
-  const [showSettings,setShowSettings] = useState(false);
-  const [showExport,  setShowExport]   = useState(false);
-  const [showGoals,   setShowGoals]    = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showExport,   setShowExport]   = useState(false);
+  const [showGoals,    setShowGoals]    = useState(false);
+  const [confirm,      setConfirm]      = useState(null);  // { type, id, name }
+  const [undoItem,     setUndoItem]     = useState(null);  // { type, name, restore, timeLeft }
+  const undoTimer  = useRef(null);
+  const undoTicker = useRef(null);
+
+  const UNDO_SECS = 8;
+
+  const startUndo = (type, name, restoreFn, deleteFn) => {
+    // Clear any existing undo
+    clearTimeout(undoTimer.current);
+    clearInterval(undoTicker.current);
+    // If there was a previous pending delete, commit it now
+    if (undoItem?._deleteFn) undoItem._deleteFn();
+
+    setUndoItem({ type, name, timeLeft: UNDO_SECS, _deleteFn: deleteFn, _restoreFn: restoreFn });
+
+    undoTicker.current = setInterval(() => {
+      setUndoItem(prev => {
+        if (!prev) return null;
+        const next = prev.timeLeft - 1;
+        if (next <= 0) { clearInterval(undoTicker.current); return null; }
+        return { ...prev, timeLeft: next };
+      });
+    }, 1000);
+
+    undoTimer.current = setTimeout(() => {
+      deleteFn();
+      clearInterval(undoTicker.current);
+      setUndoItem(null);
+    }, UNDO_SECS * 1000);
+  };
+
+  const handleUndo = () => {
+    clearTimeout(undoTimer.current);
+    clearInterval(undoTicker.current);
+    if (undoItem?._restoreFn) undoItem._restoreFn();
+    setUndoItem(null);
+  };
+
+  const dismissUndo = () => {
+    clearTimeout(undoTimer.current);
+    clearInterval(undoTicker.current);
+    if (undoItem?._deleteFn) undoItem._deleteFn();
+    setUndoItem(null);
+  };
 
   const { data: wpData, trackWords, setGoal: setTimeGoal } = useWritingProgress();
   const lastWordCounts = useRef({}); // chapterId → last known word count
@@ -120,10 +166,40 @@ export default function App() {
     setBookId(b.id); setChapterId(null); setTab('worldbuilder');
   };
 
-  const deleteBook = async (id) => {
-    await api.deleteBook(id);
-    setBooks(prev => prev.filter(b => b.id !== id));
-    if (bookId === id) { setBookId(null); setChapterId(null); }
+  const requestDeleteBook = (id) => {
+    const b = books.find(x => x.id === id);
+    if (!b) return;
+    setConfirm({ type: 'book', id, name: b.title });
+  };
+
+  const deleteBook = (id) => {
+    const b = books.find(x => x.id === id);
+    if (!b) return;
+    const wasSelected = bookId === id;
+    const savedChapters = wasSelected ? [...chapters] : [];
+
+    // Optimistic remove
+    setBooks(prev => prev.filter(x => x.id !== id));
+    if (wasSelected) { setBookId(null); setChapterId(null); }
+
+    startUndo(
+      'book', b.title,
+      // Restore
+      () => {
+        setBooks(prev => {
+          if (prev.some(x => x.id === id)) return prev;
+          const inserted = [...prev, b].sort((a, z) => a.order_index - z.order_index);
+          return inserted;
+        });
+        if (wasSelected) {
+          setBookId(id);
+          setChapters(savedChapters);
+          if (savedChapters.length > 0) setChapterId(savedChapters[0].id);
+        }
+      },
+      // Commit delete
+      () => api.deleteBook(id)
+    );
   };
 
   const saveBook = useCallback(async (data) => {
@@ -148,10 +224,34 @@ export default function App() {
     setChapterId(ch.id); setTab('story');
   };
 
-  const deleteChapter = async (id) => {
-    await api.deleteChapter(id);
-    setChapters(prev => prev.filter(c => c.id !== id));
-    if (chapterId === id) setChapterId(null);
+  const requestDeleteChapter = (id) => {
+    const ch = chapters.find(x => x.id === id);
+    if (!ch) return;
+    setConfirm({ type: 'chapter', id, name: ch.title });
+  };
+
+  const deleteChapter = (id) => {
+    const ch = chapters.find(x => x.id === id);
+    if (!ch) return;
+    const wasSelected = chapterId === id;
+
+    // Optimistic remove
+    setChapters(prev => prev.filter(x => x.id !== id));
+    if (wasSelected) setChapterId(null);
+
+    startUndo(
+      'chapter', ch.title,
+      // Restore
+      () => {
+        setChapters(prev => {
+          if (prev.some(x => x.id === id)) return prev;
+          return [...prev, ch].sort((a, z) => a.order_index - z.order_index);
+        });
+        if (wasSelected) setChapterId(id);
+      },
+      // Commit delete
+      () => api.deleteChapter(id)
+    );
   };
 
   const saveChapter = useCallback(async (id, data) => {
@@ -223,9 +323,9 @@ export default function App() {
     <div className={appClass}>
       <Sidebar
         books={books} selectedBookId={bookId}
-        onSelectBook={selectBook} onAddBook={addBook} onDeleteBook={deleteBook}
+        onSelectBook={selectBook} onAddBook={addBook} onDeleteBook={requestDeleteBook}
         chapters={chapters} selectedChapterId={chapterId}
-        onSelectChapter={selectChapter} onAddChapter={addChapter} onDeleteChapter={deleteChapter}
+        onSelectChapter={selectChapter} onAddChapter={addChapter} onDeleteChapter={requestDeleteChapter}
         onReorderBooks={reorderBooks} onReorderChapters={reorderChapters}
       />
 
@@ -317,6 +417,33 @@ export default function App() {
           book={book} chapters={chapters} characters={characters} items={items}
           onClose={() => setShowExport(false)}
         />
+      )}
+      {/* Confirm delete modal */}
+      {confirm && (
+        <ConfirmModal
+          type={confirm.type}
+          name={confirm.name}
+          onConfirm={() => {
+            const id = confirm.id;
+            const type = confirm.type;
+            setConfirm(null);
+            if (type === 'book')    deleteBook(id);
+            else                    deleteChapter(id);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
+
+      {/* Undo toast */}
+      {undoItem && (
+        <div className="undo-toast">
+          <span className="undo-toast-msg">
+            {undoItem.type === 'book' ? '📖' : '§'} <strong>"{undoItem.name}"</strong> deleted
+          </span>
+          <span className="undo-toast-countdown">{undoItem.timeLeft}s</span>
+          <button className="undo-toast-btn" onClick={handleUndo}>Undo</button>
+          <button className="undo-toast-dismiss" onClick={dismissUndo} title="Dismiss">×</button>
+        </div>
       )}
     </div>
     </IconCtx.Provider>
