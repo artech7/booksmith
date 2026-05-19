@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { analyzeText } from '../analysis.js';
 
@@ -36,20 +36,58 @@ function Stat({ label, value, sub, warning = false, good = false }) {
   );
 }
 
-// ── Info tooltip ───────────────────────────────────────────────────────────────
+// ── Info tooltip — portal-based so it's never clipped ─────────────────────────
 
 function InfoTip({ text }) {
+  const [pos, setPos] = useState(null);
+  const ref = useRef(null);
+
+  const show = () => {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setPos({ top: r.top - 8, left: r.left + r.width / 2 });
+  };
+  const hide = () => setPos(null);
+
   return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} className="infotip-wrap">
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: '13px', height: '13px', borderRadius: '50%',
-        border: '1px solid var(--text-faint)', color: 'var(--text-faint)',
-        fontSize: '8px', fontFamily: 'var(--font-ui)', cursor: 'default',
-        flexShrink: 0, lineHeight: 1, userSelect: 'none',
-      }}>i</span>
-      <span className="infotip-bubble">{text}</span>
-    </span>
+    <>
+      <span
+        ref={ref}
+        onMouseEnter={show}
+        onMouseLeave={hide}
+        style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          width: '13px', height: '13px', borderRadius: '50%',
+          border: '1px solid var(--text-faint)', color: 'var(--text-faint)',
+          fontSize: '8px', fontFamily: 'var(--font-ui)', cursor: 'default',
+          flexShrink: 0, lineHeight: 1, userSelect: 'none',
+        }}
+      >i</span>
+      {pos && createPortal(
+        <div style={{
+          position:    'fixed',
+          top:         pos.top,
+          left:        pos.left,
+          transform:   'translate(-50%, -100%)',
+          width:       '220px',
+          background:  'var(--bg)',
+          border:      '1px solid var(--glass-border-hl)',
+          borderRadius:'8px',
+          padding:     '8px 10px',
+          fontSize:    '11.5px',
+          lineHeight:  1.55,
+          color:       'var(--text-muted)',
+          fontFamily:  'var(--font-body)',
+          boxShadow:   '0 8px 24px rgba(0,0,0,0.5)',
+          zIndex:      20000,
+          pointerEvents:'none',
+          whiteSpace:  'normal',
+        }}>
+          {text}
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 

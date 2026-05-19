@@ -1363,31 +1363,5 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
   overflow: hidden;
 }
 
-/* ── InfoTip tooltip ─────────────────────────────────────────── */
-.infotip-wrap { display: inline-flex; align-items: center; }
-
-.infotip-bubble {
-  display: none;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 220px;
-  background: var(--bg);
-  border: 1px solid var(--glass-border-hl);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 11px;
-  line-height: 1.55;
-  color: var(--text-muted);
-  font-family: var(--font-body);
-  font-style: normal;
-  text-transform: none;
-  letter-spacing: 0;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  z-index: 20000;
-  pointer-events: none;
-  white-space: normal;
-}
-
-.infotip-wrap:hover .infotip-bubble { display: block; }
+/* ── InfoTip tooltip — rendered via portal, no clipping ─────── */
+/* Styles are all inline in the component */
