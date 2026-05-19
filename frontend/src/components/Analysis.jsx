@@ -1,107 +1,190 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ALTERNATIVES } from '../alternatives.js';
+import { getAlternatives } from '../thesaurus.js';
 
 const IGNORED_KEY = 'bs_ignored_words';
 const loadIgnored = () => { try { return new Set(JSON.parse(localStorage.getItem(IGNORED_KEY)) || []); } catch { return new Set(); } };
 const saveIgnored = (set) => localStorage.setItem(IGNORED_KEY, JSON.stringify([...set]));
 
+// ── Grade badge ────────────────────────────────────────────────────────────────
+
+const GRADE_COLOR = {
+  strong: '#7a9e7e',
+  good:   'var(--accent)',
+  weaker: 'var(--text-faint)',
+};
+const GRADE_LABEL = {
+  strong: '●●●',
+  good:   '●●○',
+  weaker: '●○○',
+};
+
 // ── Adverb alternatives popup ──────────────────────────────────────────────────
 
 function AdverbPopup({ word, count, pos, onReplace, onClose, onIgnore }) {
-  const info = ALTERNATIVES[word.toLowerCase()];
-  const ref  = useRef(null);
+  const [data,    setData]    = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error,   setError]   = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true); setError(false); setData(null);
+    getAlternatives(word).then(res => {
+      if (cancelled) return;
+      setData(res); setLoading(false);
+      if (!res) setError(true);
+    }).catch(() => { if (!cancelled) { setError(true); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [word]);
 
   const doReplace = (alt) => { onReplace(word, alt); onClose(); };
 
+  const flipLeft = pos.left > window.innerWidth - 260;
+
   return createPortal(
     <>
-      {/* Backdrop */}
       <div style={{ position:'fixed', inset:0, zIndex:19998 }} onClick={onClose} />
-      {/* Panel */}
-      <div ref={ref} style={{
+      <div style={{
         position:'fixed', zIndex:19999,
         top: pos.bottom + 6, left: pos.left,
-        transform: pos.left > window.innerWidth - 260 ? 'translateX(calc(-100% + 24px))' : 'none',
-        width:'240px',
+        transform: flipLeft ? 'translateX(calc(-100% + 24px))' : 'none',
+        width:'250px',
         background:'var(--bg)', border:'1px solid var(--glass-border-hl)',
-        borderRadius:'10px', boxShadow:'0 12px 40px rgba(0,0,0,0.5)',
-        overflow:'hidden',
+        borderRadius:'10px', boxShadow:'0 12px 40px rgba(0,0,0,0.55)',
+        overflow:'hidden', fontFamily:'var(--font-body)',
       }}>
         {/* Header */}
-        <div style={{ padding:'10px 12px 8px', borderBottom:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-          <div>
-            <span style={{ fontSize:'14px', fontFamily:'var(--font-head)', fontWeight:600, color:'var(--text)' }}>{word}</span>
-            <span style={{ fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginLeft:'6px' }}>×{count} on this page</span>
+        <div style={{ padding:'10px 12px 8px', borderBottom:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--glass-bg)' }}>
+          <div style={{ display:'flex', alignItems:'baseline', gap:'8px' }}>
+            <span style={{ fontSize:'15px', fontFamily:'var(--font-head)', fontWeight:600, color:'var(--text)' }}>{word}</span>
+            <span style={{ fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>×{count} this page</span>
+            {data?.source === 'offline' && (
+              <span style={{ fontSize:'9px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', letterSpacing:'0.1em' }}>OFFLINE</span>
+            )}
           </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-faint)', fontSize:'16px', cursor:'pointer', lineHeight:1, padding:'0 2px' }}>×</button>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-faint)', fontSize:'16px', cursor:'pointer', lineHeight:1 }}>×</button>
         </div>
 
         {/* Tip */}
-        {info?.tip && (
-          <div style={{ padding:'8px 12px', background:'rgba(200,169,110,0.06)', borderBottom:'1px solid var(--glass-border)', fontSize:'11.5px', color:'var(--text-muted)', fontFamily:'var(--font-body)', fontStyle:'italic', lineHeight:1.5 }}>
-            {info.tip}
+        {data?.tip && (
+          <div style={{ padding:'7px 12px', background:'rgba(200,169,110,0.06)', borderBottom:'1px solid var(--glass-border)', fontSize:'11px', color:'var(--text-muted)', fontStyle:'italic', lineHeight:1.5 }}>
+            {data.tip}
           </div>
         )}
 
-        <div style={{ maxHeight:'280px', overflowY:'auto' }}>
-          {/* Swap alternatives */}
-          {info?.swap?.length > 0 && (
-            <div style={{ padding:'8px 12px', borderBottom: info?.verb?.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
-              <div style={{ fontSize:'8.5px', letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'6px' }}>
-                Swap — click to replace all
-              </div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
-                {info.swap.map(alt => (
-                  <button key={alt} onClick={() => doReplace(alt)} style={{
-                    padding:'3px 9px', borderRadius:'10px',
-                    border:'1px solid var(--glass-border-hl)',
-                    background:'var(--accent-dim)', color:'var(--accent)',
-                    fontSize:'12px', fontFamily:'var(--font-body)',
-                    cursor:'pointer', transition:'background 0.12s',
-                  }}
-                    onMouseEnter={e => e.target.style.background='var(--accent-glow)'}
-                    onMouseLeave={e => e.target.style.background='var(--accent-dim)'}
-                  >{alt}</button>
-                ))}
-              </div>
+        {/* Body */}
+        <div style={{ maxHeight:'300px', overflowY:'auto', padding:'0' }}>
+          {loading && (
+            <div style={{ padding:'20px', textAlign:'center', color:'var(--text-faint)', fontSize:'12px', fontFamily:'var(--font-ui)' }}>
+              <div style={{ marginBottom:'6px', fontSize:'18px' }}>◌</div>
+              Looking up synonyms…
             </div>
           )}
 
-          {/* Verb suggestions */}
-          {info?.verb?.length > 0 && (
-            <div style={{ padding:'8px 12px' }}>
-              <div style={{ fontSize:'8.5px', letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'6px' }}>
-                Stronger verbs — manual edit
-              </div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
-                {info.verb.map(v => (
-                  <span key={v} style={{
-                    padding:'3px 9px', borderRadius:'10px',
-                    border:'1px solid var(--glass-border)',
-                    background:'var(--glass-bg)', color:'var(--text-muted)',
-                    fontSize:'12px', fontFamily:'var(--font-body)',
-                    cursor:'default',
-                  }}>{v}</span>
-                ))}
-              </div>
-              <div style={{ marginTop:'6px', fontSize:'10px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
-                Replace "[adverb] + verb" with one strong verb
-              </div>
+          {error && !loading && (
+            <div style={{ padding:'12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
+              Could not load suggestions. Check your connection.
             </div>
           )}
 
-          {/* No alternatives */}
-          {!info && (
-            <div style={{ padding:'12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-body)', fontStyle:'italic' }}>
-              No suggestions for this word yet.
-            </div>
+          {data && !loading && (
+            <>
+              {/* Swap alternatives */}
+              {data.swaps.length > 0 && (
+                <div style={{ padding:'9px 12px', borderBottom: data.verbs.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
+                  <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
+                    Swap — click to replace all
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                    {data.swaps.map(({ word: alt, grade }) => (
+                      <button key={alt} onClick={() => doReplace(alt)} title={GRADE_LABEL[grade]} style={{
+                        display:'inline-flex', alignItems:'center', gap:'4px',
+                        padding:'3px 9px', borderRadius:'10px',
+                        border:'1px solid var(--glass-border-hl)',
+                        background:'var(--accent-dim)', color:'var(--accent)',
+                        fontSize:'12px', fontFamily:'var(--font-body)',
+                        cursor:'pointer', transition:'background 0.12s',
+                      }}
+                        onMouseEnter={e => e.currentTarget.style.background='var(--accent-glow)'}
+                        onMouseLeave={e => e.currentTarget.style.background='var(--accent-dim)'}
+                      >
+                        {alt}
+                        <span style={{ fontSize:'8px', color: GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Verb alternatives */}
+              {data.verbs.length > 0 && (
+                <div style={{ padding:'9px 12px', borderBottom: data.adjectives.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
+                  <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
+                    Verb alternatives — manual edit
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                    {data.verbs.map(({ word: v, grade }) => (
+                      <span key={v} title={GRADE_LABEL[grade]} style={{
+                        display:'inline-flex', alignItems:'center', gap:'4px',
+                        padding:'3px 9px', borderRadius:'10px',
+                        border:'1px solid var(--glass-border)',
+                        background:'var(--glass-bg)', color:'var(--text-muted)',
+                        fontSize:'12px', fontFamily:'var(--font-body)', cursor:'default',
+                      }}>
+                        {v}
+                        <span style={{ fontSize:'8px', color: GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ marginTop:'5px', fontSize:'10px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
+                    Replace "[adverb] + verb" with one strong verb
+                  </div>
+                </div>
+              )}
+
+              {/* Adjective alternatives */}
+              {data.adjectives.length > 0 && (
+                <div style={{ padding:'9px 12px' }}>
+                  <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
+                    Adjective alternatives
+                  </div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                    {data.adjectives.map(({ word: a, grade }) => (
+                      <button key={a} onClick={() => doReplace(a)} style={{
+                        display:'inline-flex', alignItems:'center', gap:'4px',
+                        padding:'3px 9px', borderRadius:'10px',
+                        border:'1px solid var(--glass-border)',
+                        background:'var(--glass-bg)', color:'var(--text-muted)',
+                        fontSize:'12px', fontFamily:'var(--font-body)', cursor:'pointer',
+                        transition:'background 0.12s',
+                      }}
+                        onMouseEnter={e => e.currentTarget.style.background='var(--glass-hover)'}
+                        onMouseLeave={e => e.currentTarget.style.background='var(--glass-bg)'}
+                      >
+                        {a}
+                        <span style={{ fontSize:'8px', color: GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {data.swaps.length === 0 && data.verbs.length === 0 && data.adjectives.length === 0 && (
+                <div style={{ padding:'14px 12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
+                  No synonyms found for this word.
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{ padding:'8px 12px', borderTop:'1px solid var(--glass-border)', display:'flex', justifyContent:'flex-end' }}>
-          <button onClick={onIgnore} style={{ background:'none', border:'none', fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', cursor:'pointer', fontStyle:'italic', padding:'2px 4px' }}>
+        <div style={{ padding:'7px 12px', borderTop:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--glass-bg)' }}>
+          <span style={{ fontSize:'9.5px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>
+            {data?.source === 'datamuse' ? 'via Datamuse' : data?.source === 'offline' ? 'offline mode' : ''}
+          </span>
+          <button onClick={() => { onIgnore(word); onClose(); }} style={{ background:'none', border:'none', fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', cursor:'pointer', fontStyle:'italic', padding:'2px 4px' }}>
             Ignore this word
           </button>
         </div>
