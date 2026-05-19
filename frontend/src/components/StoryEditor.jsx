@@ -43,14 +43,50 @@ const CAT_BG     = { short:'rgba(122,158,126,0.18)', medium:'transparent', long:
 const CAT_BORDER = { short:'rgba(122,158,126,0.5)',   medium:'transparent', long:'rgba(200,160,80,0.5)',  'very-long':'rgba(200,90,70,0.5)'  };
 const HL_BG      = { short:'rgba(122,158,126,0.45)', medium:'rgba(200,169,110,0.35)', long:'rgba(200,160,80,0.40)', 'very-long':'rgba(200,90,70,0.40)' };
 
+// ── Word-level text renderer ───────────────────────────────────────────────────
+
+function SentenceText({ text, word }) {
+  if (!word) return <>{text}</>;
+  const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} style={{
+            background: 'var(--accent)',
+            color: 'var(--bg)',
+            borderRadius: '2px',
+            padding: '0 1px',
+            fontWeight: 500,
+          }}>{part}</mark>
+        ) : <span key={i}>{part}</span>
+      )}
+    </>
+  );
+}
+
 // ── Review view ────────────────────────────────────────────────────────────────
 
 function ReviewView({ content, highlight }) {
+  const scrollRef = useRef(null);
+
   const paragraphs = useMemo(() =>
     content.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
       .map(para => ({ raw: para, sentences: splitSentences(para) })),
     [content]
   );
+
+  // Auto-scroll to first highlighted element when highlight changes
+  useEffect(() => {
+    if (!highlight || !scrollRef.current) return;
+    // Small delay to let render complete
+    const t = setTimeout(() => {
+      const el = scrollRef.current?.querySelector('[data-match="true"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 30);
+    return () => clearTimeout(t);
+  }, [highlight]);
 
   if (!content.trim()) return (
     <div style={{ padding:'28px 48px', color:'var(--text-faint)', fontStyle:'italic', fontSize:'18px' }}>
@@ -58,21 +94,24 @@ function ReviewView({ content, highlight }) {
     </div>
   );
 
+  // Track whether we've placed the first match yet (for scroll target)
+  let firstMatchPlaced = false;
+
   return (
-    <div style={{ padding:'18px 40px 28px', overflowY:'auto', flex:1, minHeight:0, fontSize:'18px', fontFamily:'var(--font-body)', fontWeight:300, color:'var(--text)' }}>
+    <div ref={scrollRef} style={{ padding:'18px 40px 28px', overflowY:'auto', flex:1, minHeight:0, fontSize:'18px', fontFamily:'var(--font-body)', fontWeight:300, color:'var(--text)' }}>
       {/* Legend */}
       <div style={{ display:'flex', gap:'14px', marginBottom:'18px', flexWrap:'wrap', paddingBottom:'12px', borderBottom:'1px solid var(--glass-border)' }}>
         {[
-          { label:'Short (≤8)',  cat:'short'     },
-          { label:'Medium (9–18)', cat:'medium'  },
-          { label:'Long (19–30)', cat:'long'     },
+          { label:'Short (≤8)',      cat:'short'     },
+          { label:'Medium (9–18)',   cat:'medium'    },
+          { label:'Long (19–30)',    cat:'long'      },
           { label:'Very long (31+)', cat:'very-long' },
         ].map(({ label, cat }) => (
           <span key={cat} style={{ display:'inline-flex', alignItems:'center', gap:'5px', fontSize:'10px', color:'var(--text-muted)', fontFamily:'var(--font-ui)' }}>
             <span style={{
               display:'inline-block', width:'24px', height:'9px', borderRadius:'2px',
               background: CAT_BG[cat] === 'transparent' ? 'var(--glass-bg)' : CAT_BG[cat],
-              border:`1px solid ${CAT_BORDER[cat] === 'transparent' ? 'var(--glass-border)' : CAT_BORDER[cat]}`,
+              border: `1px solid ${CAT_BORDER[cat] === 'transparent' ? 'var(--glass-border)' : CAT_BORDER[cat]}`,
             }} />{label}
           </span>
         ))}
@@ -86,21 +125,32 @@ function ReviewView({ content, highlight }) {
       {/* Paragraphs */}
       {paragraphs.map(({ raw, sentences }, pi) => {
         const pHighlit = paraMatches(raw, highlight);
+        const isFirstParaMatch = pHighlit && !firstMatchPlaced;
+        if (isFirstParaMatch) firstMatchPlaced = true;
+
         return (
-          <p key={pi} style={{
-            marginBottom:'1.4em', lineHeight:2.0,
-            background:    pHighlit ? 'rgba(200,169,110,0.07)' : 'transparent',
-            borderLeft:    pHighlit ? '3px solid var(--accent)' : '3px solid transparent',
-            paddingLeft:   pHighlit ? '12px' : '0',
-            borderRadius:  '2px',
-            transition:    'background 0.2s, border-color 0.2s',
-          }}>
+          <p key={pi}
+            data-match={isFirstParaMatch ? 'true' : undefined}
+            style={{
+              marginBottom:'1.4em', lineHeight:2.0,
+              background:   pHighlit ? 'rgba(200,169,110,0.07)' : 'transparent',
+              borderLeft:   pHighlit ? '3px solid var(--accent)' : '3px solid transparent',
+              paddingLeft:  pHighlit ? '12px' : '0',
+              borderRadius: '2px',
+              transition:   'background 0.2s, border-color 0.2s',
+            }}
+          >
             {sentences.map((s, si) => {
-              const wc       = s.trim().split(/\s+/).length;
-              const cat      = sentenceCategory(wc);
-              const isHighlit= sentenceMatches(s, highlight);
+              const wc        = s.trim().split(/\s+/).length;
+              const cat       = sentenceCategory(wc);
+              const isHighlit = sentenceMatches(s, highlight);
+              const isWordHL  = isHighlit && highlight?.type === 'word';
+              const isFirstSentMatch = isHighlit && !firstMatchPlaced;
+              if (isFirstSentMatch) firstMatchPlaced = true;
+
               return (
                 <span key={si}
+                  data-match={isFirstSentMatch ? 'true' : undefined}
                   title={`${wc} words — ${cat.replace('-',' ')}`}
                   style={{
                     background:   isHighlit ? (HL_BG[cat] || 'rgba(200,169,110,0.35)') : CAT_BG[cat],
@@ -109,10 +159,15 @@ function ReviewView({ content, highlight }) {
                     padding:      '1px 2px',
                     marginRight:  '4px',
                     display:      'inline',
-                    boxShadow:    isHighlit ? '0 0 0 1px rgba(200,169,110,0.4)' : 'none',
+                    boxShadow:    isHighlit ? '0 0 0 1px rgba(200,169,110,0.3)' : 'none',
                     transition:   'background 0.15s, box-shadow 0.15s',
                   }}
-                >{s}</span>
+                >
+                  {isWordHL
+                    ? <SentenceText text={s} word={highlight.word} />
+                    : s
+                  }
+                </span>
               );
             })}
           </p>
