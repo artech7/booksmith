@@ -1365,3 +1365,34 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
 
 /* ── InfoTip tooltip — rendered via portal, no clipping ─────── */
 /* Styles are all inline in the component */
+
+/* ── Analysis sidebar (inline, no portal) ────────────────────── */
+.analysis-sidebar {
+  width: 280px;
+  min-width: 280px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--glass-border);
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  overflow: hidden;
+}
+
+.analysis-sidebar-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.analysis-sidebar-title {
+  font-size: 13px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.03em;
+}
