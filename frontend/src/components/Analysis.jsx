@@ -1,9 +1,115 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { ALTERNATIVES } from '../alternatives.js';
 
 const IGNORED_KEY = 'bs_ignored_words';
 const loadIgnored = () => { try { return new Set(JSON.parse(localStorage.getItem(IGNORED_KEY)) || []); } catch { return new Set(); } };
 const saveIgnored = (set) => localStorage.setItem(IGNORED_KEY, JSON.stringify([...set]));
+
+// ── Adverb alternatives popup ──────────────────────────────────────────────────
+
+function AdverbPopup({ word, count, pos, onReplace, onClose, onIgnore }) {
+  const info = ALTERNATIVES[word.toLowerCase()];
+  const ref  = useRef(null);
+
+  const doReplace = (alt) => { onReplace(word, alt); onClose(); };
+
+  return createPortal(
+    <>
+      {/* Backdrop */}
+      <div style={{ position:'fixed', inset:0, zIndex:19998 }} onClick={onClose} />
+      {/* Panel */}
+      <div ref={ref} style={{
+        position:'fixed', zIndex:19999,
+        top: pos.bottom + 6, left: pos.left,
+        transform: pos.left > window.innerWidth - 260 ? 'translateX(calc(-100% + 24px))' : 'none',
+        width:'240px',
+        background:'var(--bg)', border:'1px solid var(--glass-border-hl)',
+        borderRadius:'10px', boxShadow:'0 12px 40px rgba(0,0,0,0.5)',
+        overflow:'hidden',
+      }}>
+        {/* Header */}
+        <div style={{ padding:'10px 12px 8px', borderBottom:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <span style={{ fontSize:'14px', fontFamily:'var(--font-head)', fontWeight:600, color:'var(--text)' }}>{word}</span>
+            <span style={{ fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginLeft:'6px' }}>×{count} on this page</span>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-faint)', fontSize:'16px', cursor:'pointer', lineHeight:1, padding:'0 2px' }}>×</button>
+        </div>
+
+        {/* Tip */}
+        {info?.tip && (
+          <div style={{ padding:'8px 12px', background:'rgba(200,169,110,0.06)', borderBottom:'1px solid var(--glass-border)', fontSize:'11.5px', color:'var(--text-muted)', fontFamily:'var(--font-body)', fontStyle:'italic', lineHeight:1.5 }}>
+            {info.tip}
+          </div>
+        )}
+
+        <div style={{ maxHeight:'280px', overflowY:'auto' }}>
+          {/* Swap alternatives */}
+          {info?.swap?.length > 0 && (
+            <div style={{ padding:'8px 12px', borderBottom: info?.verb?.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
+              <div style={{ fontSize:'8.5px', letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'6px' }}>
+                Swap — click to replace all
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                {info.swap.map(alt => (
+                  <button key={alt} onClick={() => doReplace(alt)} style={{
+                    padding:'3px 9px', borderRadius:'10px',
+                    border:'1px solid var(--glass-border-hl)',
+                    background:'var(--accent-dim)', color:'var(--accent)',
+                    fontSize:'12px', fontFamily:'var(--font-body)',
+                    cursor:'pointer', transition:'background 0.12s',
+                  }}
+                    onMouseEnter={e => e.target.style.background='var(--accent-glow)'}
+                    onMouseLeave={e => e.target.style.background='var(--accent-dim)'}
+                  >{alt}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Verb suggestions */}
+          {info?.verb?.length > 0 && (
+            <div style={{ padding:'8px 12px' }}>
+              <div style={{ fontSize:'8.5px', letterSpacing:'0.16em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'6px' }}>
+                Stronger verbs — manual edit
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                {info.verb.map(v => (
+                  <span key={v} style={{
+                    padding:'3px 9px', borderRadius:'10px',
+                    border:'1px solid var(--glass-border)',
+                    background:'var(--glass-bg)', color:'var(--text-muted)',
+                    fontSize:'12px', fontFamily:'var(--font-body)',
+                    cursor:'default',
+                  }}>{v}</span>
+                ))}
+              </div>
+              <div style={{ marginTop:'6px', fontSize:'10px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
+                Replace "[adverb] + verb" with one strong verb
+              </div>
+            </div>
+          )}
+
+          {/* No alternatives */}
+          {!info && (
+            <div style={{ padding:'12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-body)', fontStyle:'italic' }}>
+              No suggestions for this word yet.
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding:'8px 12px', borderTop:'1px solid var(--glass-border)', display:'flex', justifyContent:'flex-end' }}>
+          <button onClick={onIgnore} style={{ background:'none', border:'none', fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', cursor:'pointer', fontStyle:'italic', padding:'2px 4px' }}>
+            Ignore this word
+          </button>
+        </div>
+      </div>
+    </>,
+    document.body
+  );
+}
 
 // ── InfoTip ────────────────────────────────────────────────────────────────────
 
@@ -103,6 +209,51 @@ function Chip({ text, warning=false, onHover, onLeave, onIgnore }) {
   );
 }
 
+function AdverbChip({ word, count, onHover, onLeave, onIgnore, onReplace }) {
+  const [popup, setPopup] = useState(null);
+  const ref = useRef(null);
+
+  const openPopup = (e) => {
+    e.stopPropagation();
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setPopup({ bottom: r.bottom, left: r.left });
+  };
+
+  const warning = count >= 3;
+
+  return (
+    <>
+      <span ref={ref}
+        onMouseEnter={onHover} onMouseLeave={onLeave}
+        onClick={openPopup}
+        title="Click for alternatives"
+        style={{
+          display:'inline-flex', alignItems:'center', gap:'4px', padding:'2px 8px',
+          borderRadius:'12px',
+          border:`1px solid ${warning?'rgba(200,120,80,0.4)':'var(--glass-border-hl)'}`,
+          background: popup ? 'var(--glass-active)' : warning ? 'rgba(200,120,80,0.08)' : 'var(--accent-dim)',
+          fontSize:'11px', fontFamily:'var(--font-ui)',
+          color: warning ? 'rgba(200,120,80,0.9)' : 'var(--accent)',
+          cursor:'pointer', transition:'background 0.12s',
+          userSelect:'none',
+        }}
+      >
+        {word} <span style={{ opacity:0.6 }}>×{count}</span>
+        <span style={{ opacity:0.5, fontSize:'9px', marginLeft:'1px' }}>▾</span>
+      </span>
+      {popup && (
+        <AdverbPopup
+          word={word} count={count} pos={popup}
+          onReplace={onReplace}
+          onIgnore={() => { onIgnore(word); setPopup(null); }}
+          onClose={() => setPopup(null)}
+        />
+      )}
+    </>
+  );
+}
+
 function DistBar({ dist, total, onHover, onLeave }) {
   const bars = [
     { key:'short',    label:'Short',     color:'#7a9e7e',              hlType:'short'     },
@@ -132,7 +283,7 @@ function DistBar({ dist, total, onHover, onLeave }) {
 
 // ── Main Analysis sidebar ──────────────────────────────────────────────────────
 
-export default function Analysis({ data, onHighlight, onClose }) {
+export default function Analysis({ data, onHighlight, onReplace, onClose }) {
   const [ignored, setIgnored] = useState(loadIgnored);
   const [addInput, setAddInput] = useState('');
   const inputRef = useRef(null);
@@ -245,13 +396,14 @@ export default function Analysis({ data, onHighlight, onClose }) {
           </Section>
 
           {/* Adverbs */}
-          <Section label="Adverbs" tip="Adverbs ending in -ly often signal weak verb choices. Click × on a chip to ignore that word globally." count={adverbs.length} countWarning={adverbs.length>5}>
+          <Section label="Adverbs" tip="Adverbs ending in -ly and common weak intensifiers (very, really, just, etc). Click a chip for replacement suggestions. Click × to ignore a word globally." count={adverbs.length} countWarning={adverbs.length>5}>
             {adverbs.length > 0 ? (
               <div style={{ display:'flex', flexWrap:'wrap', gap:'4px' }}>
                 {adverbs.map(({ word, count }) => (
-                  <Chip key={word} text={`${word} ×${count}`} warning={count>=3}
+                  <AdverbChip key={word} word={word} count={count}
                     onHover={() => hl({ type:'word', word })} onLeave={clr}
-                    onIgnore={() => ignoreFromChip(word)} />
+                    onIgnore={ignoreFromChip}
+                    onReplace={(old, alt) => onReplace(old, alt)} />
                 ))}
               </div>
             ) : <span style={{ fontSize:'12px', color:'#7a9e7e', fontFamily:'var(--font-ui)' }}>None detected</span>}

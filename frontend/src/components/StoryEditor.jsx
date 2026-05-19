@@ -219,6 +219,19 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
 
   const switchView = (v) => { setView(v); if (v !== 'edit') onFocusChange(false); };
 
+  const handleReplace = (oldWord, newWord) => {
+    const regex = new RegExp(`\\b${oldWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+    const updated = content.replace(regex, (match) => {
+      if (match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
+        return newWord.charAt(0).toUpperCase() + newWord.slice(1);
+      }
+      return newWord.toLowerCase();
+    });
+    setContent(updated);
+    setSaveStatus('saving');
+    save({ content: updated });
+  };
+
   const toggleAnalysis = () => {
     if (!showAnalysis) { setShowAnalysis(true); setView('review'); setHighlight(null); }
     else               { setShowAnalysis(false); setHighlight(null); setView('edit'); }
@@ -278,7 +291,7 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
         </div>
 
         {showAnalysis && (
-          <Analysis data={analysisData} onHighlight={setHighlight} onClose={toggleAnalysis} />
+          <Analysis data={analysisData} onHighlight={setHighlight} onReplace={handleReplace} onClose={toggleAnalysis} />
         )}
       </div>
 

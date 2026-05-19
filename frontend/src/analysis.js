@@ -87,16 +87,21 @@ export function detectPassive(text) {
 
 // ── Adverbs ────────────────────────────────────────────────────────────────────
 
+import { WEAK_ADVERBS } from './alternatives.js';
+
 export function detectAdverbs(text) {
-  const words   = text.match(/\b\w+ly\b/gi) || [];
-  const counts  = {};
+  // Match -ly words AND known weak adverbs
+  const words = text.match(/\b\w+\b/gi) || [];
+  const counts = {};
   for (const w of words) {
-    const k = w.toLowerCase();
-    counts[k] = (counts[k] || 0) + 1;
+    const lower = w.toLowerCase();
+    const isLy   = lower.endsWith('ly') && lower.length > 3;
+    const isWeak = WEAK_ADVERBS.has(lower);
+    if (isLy || isWeak) counts[lower] = (counts[lower] || 0) + 1;
   }
   return Object.entries(counts)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
+    .slice(0, 12)
     .map(([word, count]) => ({ word, count }));
 }
 
