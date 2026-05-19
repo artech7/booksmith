@@ -1,7 +1,114 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useDebounce } from '../hooks/useDebounce.js';
 import { splitSentences, sentenceCategory, analyzeText } from '../analysis.js';
+import { getDefinition } from '../thesaurus.js';
 import Analysis from './Analysis.jsx';
+
+// ── Definition tooltip ─────────────────────────────────────────────────────────
+
+function DefTooltip({ def, pos }) {
+  if (!def) return null;
+  const flipUp = pos.bottom > window.innerHeight - 200;
+  return createPortal(
+    <div style={{
+      position: 'fixed',
+      left:     Math.min(pos.left, window.innerWidth - 280),
+      top:      flipUp ? pos.top - 8 : pos.bottom + 8,
+      transform:flipUp ? 'translateY(-100%)' : 'none',
+      width:    '268px',
+      background: 'var(--bg)',
+      border:   '1px solid var(--glass-border-hl)',
+      borderRadius: '10px',
+      boxShadow:'0 10px 36px rgba(0,0,0,0.5)',
+      zIndex:   30000,
+      pointerEvents: 'none',
+      fontFamily: 'var(--font-body)',
+      overflow: 'hidden',
+    }}>
+      {/* Word + phonetic */}
+      <div style={{ padding:'9px 12px 7px', borderBottom:'1px solid var(--glass-border)', background:'var(--glass-bg)', display:'flex', alignItems:'baseline', gap:'8px' }}>
+        <span style={{ fontSize:'15px', fontWeight:600, fontFamily:'var(--font-head)', color:'var(--text)' }}>{def.word}</span>
+        {def.phonetic && <span style={{ fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>{def.phonetic}</span>}
+      </div>
+      {/* Meanings */}
+      <div style={{ maxHeight:'220px', overflowY:'auto', padding:'8px 0' }}>
+        {def.meanings.map((m, mi) => (
+          <div key={mi} style={{ padding:'4px 12px 8px', borderBottom: mi < def.meanings.length - 1 ? '1px solid var(--glass-border)' : 'none' }}>
+            <div style={{ fontSize:'9px', letterSpacing:'0.14em', textTransform:'uppercase', color:'var(--accent)', fontFamily:'var(--font-ui)', marginBottom:'4px' }}>{m.partOfSpeech}</div>
+            {m.definitions.map((d, di) => (
+              <div key={di} style={{ marginBottom: d.example ? '4px' : '0' }}>
+                <div style={{ fontSize:'12.5px', color:'var(--text-muted)', lineHeight:1.5 }}>{di + 1}. {d.definition}</div>
+                {d.example && <div style={{ fontSize:'11px', color:'var(--text-faint)', fontStyle:'italic', marginTop:'2px', lineHeight:1.4 }}>"{d.example}"</div>}
+              </div>
+            ))}
+            {m.synonyms.length > 0 && (
+              <div style={{ marginTop:'5px', fontSize:'10.5px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>
+                <span style={{ color:'#7a9e7e', marginRight:'4px' }}>≈</span>
+                {m.synonyms.join(', ')}
+              </div>
+            )}
+            {m.antonyms.length > 0 && (
+              <div style={{ marginTop:'2px', fontSize:'10.5px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>
+                <span style={{ color:'#9b85c4', marginRight:'4px' }}>≠</span>
+                {m.antonyms.join(', ')}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ padding:'4px 12px', background:'var(--glass-bg)', borderTop:'1px solid var(--glass-border)', fontSize:'9px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>
+        via Free Dictionary API
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ── Word token — hover for definition ─────────────────────────────────────────
+
+function WordToken({ word, isHighlit }) {
+  const [def, setDef]   = useState(null);
+  const [pos, setPos]   = useState(null);
+  const [show, setShow] = useState(false);
+  const ref    = useRef(null);
+  const timer  = useRef(null);
+  const loaded = useRef(false);
+
+  const onEnter = () => {
+    timer.current = setTimeout(async () => {
+      const r = ref.current?.getBoundingClientRect();
+      if (!r) return;
+      setPos(r); setShow(true);
+      if (!loaded.current) {
+        const data = await getDefinition(word);
+        loaded.current = true;
+        setDef(data);
+      }
+    }, 380);
+  };
+
+  const onLeave = () => {
+    clearTimeout(timer.current);
+    setShow(false);
+  };
+
+  return (
+    <>
+      <span ref={ref} onMouseEnter={onEnter} onMouseLeave={onLeave}
+        style={{
+          cursor: 'help',
+          background: isHighlit ? 'var(--accent)' : 'none',
+          color:      isHighlit ? 'var(--bg)'     : 'inherit',
+          borderRadius: '2px',
+          padding: isHighlit ? '0 1px' : '0',
+          fontWeight: isHighlit ? 500 : 'inherit',
+        }}
+      >{word}</span>
+      {show && <DefTooltip def={def} pos={pos || { left:0, top:0, bottom:0 }} />}
+    </>
+  );
+}
 
 const WORDS_PER_PAGE = 250;
 
@@ -43,21 +150,18 @@ const CAT_BG     = { short:'rgba(122,158,126,0.18)', medium:'transparent',      
 const CAT_BORDER = { short:'rgba(122,158,126,0.5)',   medium:'transparent',             long:'rgba(200,160,80,0.5)',  'very-long':'rgba(200,90,70,0.5)'  };
 const HL_BG      = { short:'rgba(122,158,126,0.45)', medium:'rgba(200,169,110,0.35)', long:'rgba(200,160,80,0.40)', 'very-long':'rgba(200,90,70,0.40)' };
 
-// ── Word-level highlighter ─────────────────────────────────────────────────────
+// ── Sentence renderer — tokenizes words for definition hover ──────────────────
 
-function SentenceText({ text, word }) {
-  if (!word) return <>{text}</>;
-  const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
-  // reset lastIndex since we reuse the regex
-  regex.lastIndex = 0;
+function SentenceContent({ text, highlightWord }) {
+  // Split into word and non-word tokens
+  const tokens = text.split(/(\b[a-zA-Z']+\b)/);
   return (
     <>
-      {parts.map((part, i) =>
-        part.toLowerCase() === word.toLowerCase()
-          ? <mark key={i} style={{ background:'var(--accent)', color:'var(--bg)', borderRadius:'2px', padding:'0 1px', fontWeight:500 }}>{part}</mark>
-          : <span key={i}>{part}</span>
-      )}
+      {tokens.map((tok, i) => {
+        if (!/^[a-zA-Z']/.test(tok)) return <span key={i}>{tok}</span>;
+        const isHL = highlightWord && tok.toLowerCase() === highlightWord.toLowerCase();
+        return <WordToken key={i} word={tok} isHighlit={isHL} />;
+      })}
     </>
   );
 }
@@ -144,9 +248,10 @@ function ReviewView({ pageText, highlight }) {
                     transition:'background 0.15s, box-shadow 0.15s',
                   }}
                 >
-                  {isHl && highlight?.type === 'word'
-                    ? <SentenceText text={s} word={highlight.word} />
-                    : s}
+                  <SentenceContent
+                    text={s}
+                    highlightWord={isHl && highlight?.type === 'word' ? highlight.word : null}
+                  />
                 </span>
               );
             })}

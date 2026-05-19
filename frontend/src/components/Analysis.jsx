@@ -246,7 +246,7 @@ function AdverbPopup({ word, count, pos, content, onReplace, onClose, onIgnore }
                   )}
 
                   {data.verbs.length > 0 && (
-                    <div style={{ padding:'9px 12px', borderBottom: data.adjectives.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
+                    <div style={{ padding:'9px 12px', borderBottom: data.antonyms?.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
                       <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
                         Verb alternatives — manual edit
                       </div>
@@ -269,22 +269,23 @@ function AdverbPopup({ word, count, pos, content, onReplace, onClose, onIgnore }
                     </div>
                   )}
 
-                  {data.adjectives.length > 0 && (
-                    <div style={{ padding:'9px 12px' }}>
+                  {data.antonyms?.length > 0 && (
+                    <div style={{ padding:'9px 12px', borderBottom: data.adjectives?.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
                       <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
-                        Adjective alternatives
+                        Antonyms — click to choose occurrences
                       </div>
                       <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
-                        {data.adjectives.map(({ word: a, grade }) => (
-                          <button key={a} onClick={() => startPick(a)} style={{
+                        {data.antonyms.map(({ word: a, grade }) => (
+                          <button key={a} onClick={() => startPick(a)} title={GRADE_LABEL[grade]} style={{
                             display:'inline-flex', alignItems:'center', gap:'4px',
                             padding:'3px 9px', borderRadius:'10px',
-                            border:'1px solid var(--glass-border)', background:'var(--glass-bg)',
-                            color:'var(--text-muted)', fontSize:'12px', fontFamily:'var(--font-body)',
+                            border:'1px solid rgba(155,133,196,0.35)',
+                            background:'rgba(155,133,196,0.08)', color:'#9b85c4',
+                            fontSize:'12px', fontFamily:'var(--font-body)',
                             cursor:'pointer', transition:'background 0.12s',
                           }}
-                            onMouseEnter={e => e.currentTarget.style.background='var(--glass-hover)'}
-                            onMouseLeave={e => e.currentTarget.style.background='var(--glass-bg)'}
+                            onMouseEnter={e => e.currentTarget.style.background='rgba(155,133,196,0.18)'}
+                            onMouseLeave={e => e.currentTarget.style.background='rgba(155,133,196,0.08)'}
                           >
                             {a}
                             <span style={{ fontSize:'8px', color:GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
