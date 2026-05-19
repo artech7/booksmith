@@ -1323,3 +1323,23 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
   transition: width 0.5s ease, background 0.4s;
   min-width: 3px;
 }
+
+/* ── Analysis Panel ──────────────────────────────────────────── */
+.analysis-panel {
+  position: absolute;
+  top: 56px;
+  right: 16px;
+  width: 300px;
+  max-height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(36px);
+  -webkit-backdrop-filter: blur(36px);
+  border: 1px solid var(--glass-border);
+  border-radius: 13px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+  animation: slideDown 0.16s ease;
+  z-index: 102;
+  overflow: hidden;
+}
