@@ -40,7 +40,11 @@ const CAT_BORDER = {
 };
 
 function ReviewView({ content }) {
-  const sentences = useMemo(() => splitSentences(content), [content]);
+  const paragraphs = useMemo(() => {
+    // Split into paragraphs first, then sentences within each
+    return content.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+      .map(para => splitSentences(para));
+  }, [content]);
 
   if (!content.trim()) {
     return (
@@ -51,22 +55,21 @@ function ReviewView({ content }) {
   }
 
   return (
-    <div style={{ padding: '18px 48px 28px', overflowY: 'auto', flex: 1, lineHeight: 2.1, fontSize: '18px', fontFamily: 'var(--font-body)', fontWeight: 300, color: 'var(--text)' }}>
+    <div style={{ padding: '18px 48px 28px', overflowY: 'auto', flex: 1, fontSize: '18px', fontFamily: 'var(--font-body)', fontWeight: 300, color: 'var(--text)' }}>
       {/* Legend */}
       <div style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap', paddingBottom: '14px', borderBottom: '1px solid var(--glass-border)' }}>
         {[
-          { label: 'Short (≤8 words)',      cat: 'short'     },
-          { label: 'Medium (9–18)',          cat: 'medium'    },
-          { label: 'Long (19–30)',           cat: 'long'      },
-          { label: 'Very long (31+)',        cat: 'very-long' },
+          { label: 'Short (≤8 words)', cat: 'short'     },
+          { label: 'Medium (9–18)',    cat: 'medium'    },
+          { label: 'Long (19–30)',     cat: 'long'      },
+          { label: 'Very long (31+)',  cat: 'very-long' },
         ].map(({ label, cat }) => (
           <span key={cat} style={{
             display: 'inline-flex', alignItems: 'center', gap: '6px',
             fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ui)',
           }}>
             <span style={{
-              display: 'inline-block', width: '28px', height: '11px',
-              borderRadius: '2px',
+              display: 'inline-block', width: '28px', height: '11px', borderRadius: '2px',
               background: CAT_COLORS[cat] === 'transparent' ? 'var(--glass-bg)' : CAT_COLORS[cat],
               border: `1px solid ${CAT_BORDER[cat] === 'transparent' ? 'var(--glass-border)' : CAT_BORDER[cat]}`,
             }} />
@@ -74,29 +77,31 @@ function ReviewView({ content }) {
           </span>
         ))}
       </div>
-      {/* Sentences */}
-      <div>
-        {sentences.map((s, i) => {
-          const wc  = s.trim().split(/\s+/).length;
-          const cat = sentenceCategory(wc);
-          return (
-            <span
-              key={i}
-              title={`${wc} words — ${cat.replace('-', ' ')}`}
-              style={{
-                background:   CAT_COLORS[cat],
-                borderBottom: `2px solid ${CAT_BORDER[cat]}`,
-                borderRadius: '2px',
-                padding:      '1px 2px',
-                marginRight:  '4px',
-                display:      'inline',
-              }}
-            >
-              {s}
-            </span>
-          );
-        })}
-      </div>
+      {/* Paragraphs — each on its own block with spacing */}
+      {paragraphs.map((sentences, pi) => (
+        <p key={pi} style={{ marginBottom: '1.4em', lineHeight: 2.0 }}>
+          {sentences.map((s, si) => {
+            const wc  = s.trim().split(/\s+/).length;
+            const cat = sentenceCategory(wc);
+            return (
+              <span
+                key={si}
+                title={`${wc} words — ${cat.replace('-', ' ')}`}
+                style={{
+                  background:   CAT_COLORS[cat],
+                  borderBottom: `2px solid ${CAT_BORDER[cat]}`,
+                  borderRadius: '2px',
+                  padding:      '1px 2px',
+                  marginRight:  '4px',
+                  display:      'inline',
+                }}
+              >
+                {s}
+              </span>
+            );
+          })}
+        </p>
+      ))}
     </div>
   );
 }

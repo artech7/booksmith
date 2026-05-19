@@ -36,13 +36,33 @@ function Stat({ label, value, sub, warning = false, good = false }) {
   );
 }
 
-function Section({ label, children, count, countWarning = false, last = false }) {
+// ── Info tooltip ───────────────────────────────────────────────────────────────
+
+function InfoTip({ text }) {
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} className="infotip-wrap">
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: '13px', height: '13px', borderRadius: '50%',
+        border: '1px solid var(--text-faint)', color: 'var(--text-faint)',
+        fontSize: '8px', fontFamily: 'var(--font-ui)', cursor: 'default',
+        flexShrink: 0, lineHeight: 1, userSelect: 'none',
+      }}>i</span>
+      <span className="infotip-bubble">{text}</span>
+    </span>
+  );
+}
+
+function Section({ label, tip, children, count, countWarning = false, last = false }) {
   return (
     <div style={{ padding: '11px 16px', borderBottom: last ? 'none' : '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '7px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '9px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-faint)', fontFamily: 'var(--font-ui)' }}>
-          {label}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <span style={{ fontSize: '9px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-faint)', fontFamily: 'var(--font-ui)' }}>
+            {label}
+          </span>
+          {tip && <InfoTip text={tip} />}
+        </div>
         {count !== undefined && (
           <span style={{
             fontSize: '10px', fontFamily: 'var(--font-ui)',
@@ -145,7 +165,7 @@ export default function Analysis({ text, onClose }) {
 
           {/* Readability */}
           {fk && (
-            <Section label="Readability">
+            <Section label="Readability" tip="Flesch Reading Ease measures how easy your text is to read (0–100, higher = easier). Grade level estimates the US school grade needed to understand it. Aim for 60–70 ease for accessible fiction.">
               <Stat
                 label="Flesch reading ease"
                 value={fk.ease}
@@ -165,7 +185,7 @@ export default function Analysis({ text, onClose }) {
 
           {/* Sentences */}
           {sentences && (
-            <Section label="Sentences">
+            <Section label="Sentences" tip="Tracks sentence length variety. Good prose mixes short punchy sentences with medium ones. Run-ons (40+ words) can lose readers. Fragments (under 3 words) are fine for effect but flag accidental ones.">
               <Stat label="Total sentences" value={sentences.count} />
               <Stat
                 label="Average length"
@@ -190,7 +210,7 @@ export default function Analysis({ text, onClose }) {
 
           {/* Paragraphs */}
           {paragraphs && (
-            <Section label="Paragraphs" count={paragraphs.walls} countWarning>
+            <Section label="Paragraphs" tip="Paragraph walls (120+ words) can overwhelm readers visually. Breaking them up improves pacing and white space. Very short paragraphs (≤20 words) can add dramatic punch but too many feel choppy." count={paragraphs.walls} countWarning>
               <Stat label="Total paragraphs" value={paragraphs.count} />
               <Stat label="Avg length" value={paragraphs.avg} sub="words" />
               {paragraphs.walls > 0 && (
@@ -203,7 +223,7 @@ export default function Analysis({ text, onClose }) {
           )}
 
           {/* Passive voice */}
-          <Section label="Passive Voice" count={passive.length} countWarning>
+          <Section label="Passive Voice" tip="Passive voice (e.g. 'was taken' instead of 'she took') can weaken prose by hiding who acts. Some passive is natural — obituaries, reports, and formal writing use it intentionally — but in fiction, active voice usually reads stronger." count={passive.length} countWarning>
             {passive.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {passive.slice(0, 4).map((s, i) => (
@@ -228,7 +248,7 @@ export default function Analysis({ text, onClose }) {
           </Section>
 
           {/* Adverbs */}
-          <Section label="Adverbs" count={adverbs.length} countWarning={adverbs.length > 5}>
+          <Section label="Adverbs" tip="Adverbs ending in -ly often signal weak verb choices. 'She ran quickly' becomes stronger as 'She sprinted'. A few are fine — it's the pattern of relying on them that dulls prose. Family names ending in -ly may appear here as false positives." count={adverbs.length} countWarning={adverbs.length > 5}>
             {adverbs.length > 0 ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 {adverbs.map(({ word, count }) => (
@@ -241,7 +261,7 @@ export default function Analysis({ text, onClose }) {
           </Section>
 
           {/* Repeated words */}
-          <Section label="Overused Words" count={repeated.length} countWarning={repeated.length > 4}>
+          <Section label="Overused Words" tip="Words appearing 3 or more times (excluding common stop words). Repeated words in close proximity can feel monotonous. Names and proper nouns appearing here are usually fine — it's descriptive words and verbs worth varying." count={repeated.length} countWarning={repeated.length > 4}>
             {repeated.length > 0 ? (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 {repeated.map(({ word, count }) => (
@@ -254,7 +274,7 @@ export default function Analysis({ text, onClose }) {
           </Section>
 
           {/* Dialogue */}
-          <Section label="Punctuation & Style" count={dialogue.length} countWarning last>
+          <Section label="Punctuation & Style" tip="Common mechanical issues: dialogue punctuation (commas vs periods before closing quotes), double spaces, spaced hyphens that should be em dashes (—), and comma splices joining two independent clauses with just a comma." count={dialogue.length} countWarning last>
             {dialogue.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {dialogue.map((issue, i) => (
