@@ -1332,14 +1332,24 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
   min-width: 3px;
 }
 
+/* ── Portal overlay (renders into document.body, bypasses zoom) ─ */
+.portal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+.portal-overlay > * {
+  pointer-events: all;
+}
+
 /* ── Analysis Panel ──────────────────────────────────────────── */
 .analysis-panel {
-  position: absolute;
+  position: fixed;
   top: 56px;
   right: 16px;
   width: 300px;
-  height: calc(100vh - 80px);
-  max-height: calc(100vh - 80px);
+  height: calc(100vh - 72px);
   display: flex;
   flex-direction: column;
   background: var(--sidebar-bg);
@@ -1349,6 +1359,6 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
   border-radius: 13px;
   box-shadow: 0 16px 48px rgba(0,0,0,0.45);
   animation: slideDown 0.16s ease;
-  z-index: 102;
+  z-index: 10000;
   overflow: hidden;
 }

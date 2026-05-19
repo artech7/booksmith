@@ -1,4 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { analyzeText } from '../analysis.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -112,8 +113,8 @@ export default function Analysis({ text, onClose }) {
   const data = useMemo(() => analyzeText(text), [text]);
 
   if (!data) {
-    return (
-      <div className="settings-overlay">
+    return createPortal(
+      <div className="portal-overlay">
         <div className="analysis-panel" ref={ref}>
           <div style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--glass-border)' }}>
             <span style={{ fontSize: '13px', fontFamily: 'var(--font-ui)', fontWeight: 600, color: 'var(--text)' }}>Analysis</span>
@@ -123,14 +124,15 @@ export default function Analysis({ text, onClose }) {
             Write at least a few sentences to see analysis.
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
   const { fk, sentences, passive, adverbs, repeated, dialogue, paragraphs } = data;
 
-  return (
-    <div className="settings-overlay">
+  return createPortal(
+    <div className="portal-overlay">
       <div className="analysis-panel" ref={ref}>
 
         {/* Header */}
@@ -274,6 +276,7 @@ export default function Analysis({ text, onClose }) {
 
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
