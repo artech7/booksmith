@@ -20,16 +20,126 @@ const GRADE_LABEL = {
   weaker: '●○○',
 };
 
+// ── Occurrence finder ──────────────────────────────────────────────────────────
+
+function findOccurrences(content, word) {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex   = new RegExp(`\\b${escaped}\\b`, 'gi');
+  const results = [];
+  let m;
+  while ((m = regex.exec(content)) !== null) {
+    const ctxStart = Math.max(0, m.index - 55);
+    const ctxEnd   = Math.min(content.length, m.index + m[0].length + 55);
+    const before   = content.slice(ctxStart, m.index).replace(/\n/g, ' ');
+    const matched  = content.slice(m.index, m.index + m[0].length);
+    const after    = content.slice(m.index + m[0].length, ctxEnd).replace(/\n/g, ' ');
+    results.push({ index: results.length, before, matched, after });
+  }
+  return results;
+}
+
+// ── Occurrence picker sub-view ─────────────────────────────────────────────────
+
+function OccurrencePicker({ word, replacement, occurrences, onConfirm, onBack }) {
+  const [selected, setSelected] = useState(() => new Set(occurrences.map((_, i) => i)));
+
+  const toggle = (i) => setSelected(prev => {
+    const next = new Set(prev);
+    next.has(i) ? next.delete(i) : next.add(i);
+    return next;
+  });
+
+  const allOn  = selected.size === occurrences.length;
+  const toggleAll = () => setSelected(allOn ? new Set() : new Set(occurrences.map((_,i) => i)));
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', height:'100%' }}>
+      {/* Sub-header */}
+      <div style={{ padding:'8px 12px', borderBottom:'1px solid var(--glass-border)', background:'var(--glass-bg)', display:'flex', alignItems:'center', gap:'8px' }}>
+        <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--text-faint)', cursor:'pointer', fontSize:'13px', padding:'0 4px 0 0' }}>←</button>
+        <span style={{ fontSize:'11.5px', color:'var(--text-muted)', fontFamily:'var(--font-ui)', flex:1 }}>
+          Replace <em style={{ color:'var(--text)' }}>{word}</em> → <em style={{ color:'var(--accent)' }}>{replacement}</em>
+        </span>
+        <button onClick={toggleAll} style={{ background:'none', border:'none', fontSize:'10px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', cursor:'pointer', whiteSpace:'nowrap' }}>
+          {allOn ? 'None' : 'All'}
+        </button>
+      </div>
+
+      {/* Occurrence list */}
+      <div style={{ flex:1, overflowY:'auto', maxHeight:'220px' }}>
+        {occurrences.length === 0 ? (
+          <div style={{ padding:'16px 12px', fontSize:'12px', color:'var(--text-faint)', fontStyle:'italic', fontFamily:'var(--font-ui)' }}>
+            No occurrences found in this chapter.
+          </div>
+        ) : occurrences.map(({ index, before, matched, after }) => (
+          <label key={index} onClick={() => toggle(index)} style={{
+            display:'flex', alignItems:'flex-start', gap:'9px',
+            padding:'8px 12px', cursor:'pointer',
+            background: selected.has(index) ? 'var(--glass-active)' : 'transparent',
+            borderBottom:'1px solid var(--glass-border)',
+            transition:'background 0.1s',
+          }}>
+            {/* Checkbox */}
+            <span style={{
+              flexShrink:0, marginTop:'2px',
+              width:'13px', height:'13px', borderRadius:'3px',
+              border:`1.5px solid ${selected.has(index) ? 'var(--accent)' : 'var(--glass-border-hl)'}`,
+              background: selected.has(index) ? 'var(--accent)' : 'var(--input-bg)',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              transition:'all 0.12s',
+            }}>
+              {selected.has(index) && (
+                <svg width="8" height="8" viewBox="0 0 10 10" fill="none" stroke="var(--bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="1.5 5 4 7.5 8.5 2"/>
+                </svg>
+              )}
+            </span>
+            {/* Context */}
+            <span style={{ fontSize:'11.5px', lineHeight:1.55, color:'var(--text-muted)', fontFamily:'var(--font-body)' }}>
+              <span style={{ opacity:0.6 }}>…{before}</span>
+              <mark style={{ background:'rgba(200,169,110,0.35)', color:'var(--text)', borderRadius:'2px', padding:'0 1px', fontWeight:500 }}>{matched}</mark>
+              <span style={{ opacity:0.6 }}>{after}…</span>
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {/* Confirm button */}
+      <div style={{ padding:'9px 12px', borderTop:'1px solid var(--glass-border)', background:'var(--glass-bg)', display:'flex', alignItems:'center', justifyContent:'space-between', gap:'8px' }}>
+        <span style={{ fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>
+          {selected.size} of {occurrences.length} selected
+        </span>
+        <button
+          onClick={() => onConfirm([...selected])}
+          disabled={selected.size === 0}
+          style={{
+            padding:'5px 14px', borderRadius:'7px',
+            border:'1px solid var(--glass-border-hl)',
+            background: selected.size === 0 ? 'var(--glass-bg)' : 'var(--accent-dim)',
+            color: selected.size === 0 ? 'var(--text-faint)' : 'var(--accent)',
+            fontSize:'12px', fontFamily:'var(--font-ui)',
+            cursor: selected.size === 0 ? 'not-allowed' : 'pointer',
+            transition:'all 0.12s',
+          }}
+        >
+          Replace {selected.size > 0 ? selected.size : ''}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Adverb alternatives popup ──────────────────────────────────────────────────
 
-function AdverbPopup({ word, count, pos, onReplace, onClose, onIgnore }) {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState(false);
+function AdverbPopup({ word, count, pos, content, onReplace, onClose, onIgnore }) {
+  const [data,    setData]      = useState(null);
+  const [loading, setLoading]   = useState(true);
+  const [error,   setError]     = useState(false);
+  const [picking, setPicking]   = useState(null); // { replacement, occurrences }
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true); setError(false); setData(null);
+    setLoading(true); setError(false); setData(null); setPicking(null);
     getAlternatives(word).then(res => {
       if (cancelled) return;
       setData(res); setLoading(false);
@@ -38,9 +148,17 @@ function AdverbPopup({ word, count, pos, onReplace, onClose, onIgnore }) {
     return () => { cancelled = true; };
   }, [word]);
 
-  const doReplace = (alt) => { onReplace(word, alt); onClose(); };
+  const startPick = (replacement) => {
+    const occurrences = findOccurrences(content, word);
+    setPicking({ replacement, occurrences });
+  };
 
-  const flipLeft = pos.left > window.innerWidth - 260;
+  const confirmReplace = (selectedIndices) => {
+    onReplace(word, picking.replacement, selectedIndices);
+    onClose();
+  };
+
+  const flipLeft = pos.left > window.innerWidth - 265;
 
   return createPortal(
     <>
@@ -49,145 +167,153 @@ function AdverbPopup({ word, count, pos, onReplace, onClose, onIgnore }) {
         position:'fixed', zIndex:19999,
         top: pos.bottom + 6, left: pos.left,
         transform: flipLeft ? 'translateX(calc(-100% + 24px))' : 'none',
-        width:'250px',
+        width:'255px',
         background:'var(--bg)', border:'1px solid var(--glass-border-hl)',
         borderRadius:'10px', boxShadow:'0 12px 40px rgba(0,0,0,0.55)',
         overflow:'hidden', fontFamily:'var(--font-body)',
+        display:'flex', flexDirection:'column',
       }}>
-        {/* Header */}
-        <div style={{ padding:'10px 12px 8px', borderBottom:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--glass-bg)' }}>
+
+        {/* Header — always visible */}
+        <div style={{ padding:'10px 12px 8px', borderBottom:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--glass-bg)', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'baseline', gap:'8px' }}>
             <span style={{ fontSize:'15px', fontFamily:'var(--font-head)', fontWeight:600, color:'var(--text)' }}>{word}</span>
             <span style={{ fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>×{count} this page</span>
-            {data?.source === 'offline' && (
-              <span style={{ fontSize:'9px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', letterSpacing:'0.1em' }}>OFFLINE</span>
-            )}
+            {data?.source === 'offline' && <span style={{ fontSize:'9px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', letterSpacing:'0.1em' }}>OFFLINE</span>}
           </div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--text-faint)', fontSize:'16px', cursor:'pointer', lineHeight:1 }}>×</button>
         </div>
 
-        {/* Tip */}
-        {data?.tip && (
-          <div style={{ padding:'7px 12px', background:'rgba(200,169,110,0.06)', borderBottom:'1px solid var(--glass-border)', fontSize:'11px', color:'var(--text-muted)', fontStyle:'italic', lineHeight:1.5 }}>
-            {data.tip}
-          </div>
+        {/* Occurrence picker mode */}
+        {picking ? (
+          <OccurrencePicker
+            word={word}
+            replacement={picking.replacement}
+            occurrences={picking.occurrences}
+            onConfirm={confirmReplace}
+            onBack={() => setPicking(null)}
+          />
+        ) : (
+          <>
+            {/* Tip */}
+            {data?.tip && (
+              <div style={{ padding:'7px 12px', background:'rgba(200,169,110,0.06)', borderBottom:'1px solid var(--glass-border)', fontSize:'11px', color:'var(--text-muted)', fontStyle:'italic', lineHeight:1.5, flexShrink:0 }}>
+                {data.tip}
+              </div>
+            )}
+
+            {/* Alternatives body */}
+            <div style={{ maxHeight:'300px', overflowY:'auto' }}>
+              {loading && (
+                <div style={{ padding:'20px', textAlign:'center', color:'var(--text-faint)', fontSize:'12px', fontFamily:'var(--font-ui)' }}>
+                  <div style={{ marginBottom:'6px', fontSize:'18px' }}>◌</div>
+                  Looking up synonyms…
+                </div>
+              )}
+
+              {error && !loading && (
+                <div style={{ padding:'12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
+                  Could not load suggestions. Check your connection.
+                </div>
+              )}
+
+              {data && !loading && (
+                <>
+                  {data.swaps.length > 0 && (
+                    <div style={{ padding:'9px 12px', borderBottom: data.verbs.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
+                      <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
+                        Swap — click to choose occurrences
+                      </div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                        {data.swaps.map(({ word: alt, grade }) => (
+                          <button key={alt} onClick={() => startPick(alt)} title={GRADE_LABEL[grade]} style={{
+                            display:'inline-flex', alignItems:'center', gap:'4px',
+                            padding:'3px 9px', borderRadius:'10px',
+                            border:'1px solid var(--glass-border-hl)',
+                            background:'var(--accent-dim)', color:'var(--accent)',
+                            fontSize:'12px', fontFamily:'var(--font-body)',
+                            cursor:'pointer', transition:'background 0.12s',
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.background='var(--accent-glow)'}
+                            onMouseLeave={e => e.currentTarget.style.background='var(--accent-dim)'}
+                          >
+                            {alt}
+                            <span style={{ fontSize:'8px', color:GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {data.verbs.length > 0 && (
+                    <div style={{ padding:'9px 12px', borderBottom: data.adjectives.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
+                      <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
+                        Verb alternatives — manual edit
+                      </div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                        {data.verbs.map(({ word: v, grade }) => (
+                          <span key={v} title={GRADE_LABEL[grade]} style={{
+                            display:'inline-flex', alignItems:'center', gap:'4px',
+                            padding:'3px 9px', borderRadius:'10px',
+                            border:'1px solid var(--glass-border)', background:'var(--glass-bg)',
+                            color:'var(--text-muted)', fontSize:'12px', fontFamily:'var(--font-body)', cursor:'default',
+                          }}>
+                            {v}
+                            <span style={{ fontSize:'8px', color:GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ marginTop:'5px', fontSize:'10px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
+                        Replace "[adverb] + verb" with one strong verb
+                      </div>
+                    </div>
+                  )}
+
+                  {data.adjectives.length > 0 && (
+                    <div style={{ padding:'9px 12px' }}>
+                      <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
+                        Adjective alternatives
+                      </div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
+                        {data.adjectives.map(({ word: a, grade }) => (
+                          <button key={a} onClick={() => startPick(a)} style={{
+                            display:'inline-flex', alignItems:'center', gap:'4px',
+                            padding:'3px 9px', borderRadius:'10px',
+                            border:'1px solid var(--glass-border)', background:'var(--glass-bg)',
+                            color:'var(--text-muted)', fontSize:'12px', fontFamily:'var(--font-body)',
+                            cursor:'pointer', transition:'background 0.12s',
+                          }}
+                            onMouseEnter={e => e.currentTarget.style.background='var(--glass-hover)'}
+                            onMouseLeave={e => e.currentTarget.style.background='var(--glass-bg)'}
+                          >
+                            {a}
+                            <span style={{ fontSize:'8px', color:GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {data.swaps.length === 0 && data.verbs.length === 0 && data.adjectives.length === 0 && (
+                    <div style={{ padding:'14px 12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
+                      No synonyms found for this word.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding:'7px 12px', borderTop:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--glass-bg)', flexShrink:0 }}>
+              <span style={{ fontSize:'9.5px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>
+                {data?.source === 'datamuse' ? 'via Datamuse' : data?.source === 'offline' ? 'offline mode' : ''}
+              </span>
+              <button onClick={() => { onIgnore(word); onClose(); }} style={{ background:'none', border:'none', fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', cursor:'pointer', fontStyle:'italic', padding:'2px 4px' }}>
+                Ignore this word
+              </button>
+            </div>
+          </>
         )}
-
-        {/* Body */}
-        <div style={{ maxHeight:'300px', overflowY:'auto', padding:'0' }}>
-          {loading && (
-            <div style={{ padding:'20px', textAlign:'center', color:'var(--text-faint)', fontSize:'12px', fontFamily:'var(--font-ui)' }}>
-              <div style={{ marginBottom:'6px', fontSize:'18px' }}>◌</div>
-              Looking up synonyms…
-            </div>
-          )}
-
-          {error && !loading && (
-            <div style={{ padding:'12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
-              Could not load suggestions. Check your connection.
-            </div>
-          )}
-
-          {data && !loading && (
-            <>
-              {/* Swap alternatives */}
-              {data.swaps.length > 0 && (
-                <div style={{ padding:'9px 12px', borderBottom: data.verbs.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
-                  <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
-                    Swap — click to replace all
-                  </div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
-                    {data.swaps.map(({ word: alt, grade }) => (
-                      <button key={alt} onClick={() => doReplace(alt)} title={GRADE_LABEL[grade]} style={{
-                        display:'inline-flex', alignItems:'center', gap:'4px',
-                        padding:'3px 9px', borderRadius:'10px',
-                        border:'1px solid var(--glass-border-hl)',
-                        background:'var(--accent-dim)', color:'var(--accent)',
-                        fontSize:'12px', fontFamily:'var(--font-body)',
-                        cursor:'pointer', transition:'background 0.12s',
-                      }}
-                        onMouseEnter={e => e.currentTarget.style.background='var(--accent-glow)'}
-                        onMouseLeave={e => e.currentTarget.style.background='var(--accent-dim)'}
-                      >
-                        {alt}
-                        <span style={{ fontSize:'8px', color: GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Verb alternatives */}
-              {data.verbs.length > 0 && (
-                <div style={{ padding:'9px 12px', borderBottom: data.adjectives.length > 0 ? '1px solid var(--glass-border)' : 'none' }}>
-                  <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
-                    Verb alternatives — manual edit
-                  </div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
-                    {data.verbs.map(({ word: v, grade }) => (
-                      <span key={v} title={GRADE_LABEL[grade]} style={{
-                        display:'inline-flex', alignItems:'center', gap:'4px',
-                        padding:'3px 9px', borderRadius:'10px',
-                        border:'1px solid var(--glass-border)',
-                        background:'var(--glass-bg)', color:'var(--text-muted)',
-                        fontSize:'12px', fontFamily:'var(--font-body)', cursor:'default',
-                      }}>
-                        {v}
-                        <span style={{ fontSize:'8px', color: GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
-                      </span>
-                    ))}
-                  </div>
-                  <div style={{ marginTop:'5px', fontSize:'10px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
-                    Replace "[adverb] + verb" with one strong verb
-                  </div>
-                </div>
-              )}
-
-              {/* Adjective alternatives */}
-              {data.adjectives.length > 0 && (
-                <div style={{ padding:'9px 12px' }}>
-                  <div style={{ fontSize:'8.5px', letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--text-faint)', fontFamily:'var(--font-ui)', marginBottom:'7px' }}>
-                    Adjective alternatives
-                  </div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:'5px' }}>
-                    {data.adjectives.map(({ word: a, grade }) => (
-                      <button key={a} onClick={() => doReplace(a)} style={{
-                        display:'inline-flex', alignItems:'center', gap:'4px',
-                        padding:'3px 9px', borderRadius:'10px',
-                        border:'1px solid var(--glass-border)',
-                        background:'var(--glass-bg)', color:'var(--text-muted)',
-                        fontSize:'12px', fontFamily:'var(--font-body)', cursor:'pointer',
-                        transition:'background 0.12s',
-                      }}
-                        onMouseEnter={e => e.currentTarget.style.background='var(--glass-hover)'}
-                        onMouseLeave={e => e.currentTarget.style.background='var(--glass-bg)'}
-                      >
-                        {a}
-                        <span style={{ fontSize:'8px', color: GRADE_COLOR[grade], letterSpacing:'-1px', opacity:0.8 }}>{GRADE_LABEL[grade]}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {data.swaps.length === 0 && data.verbs.length === 0 && data.adjectives.length === 0 && (
-                <div style={{ padding:'14px 12px', fontSize:'12px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
-                  No synonyms found for this word.
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding:'7px 12px', borderTop:'1px solid var(--glass-border)', display:'flex', alignItems:'center', justifyContent:'space-between', background:'var(--glass-bg)' }}>
-          <span style={{ fontSize:'9.5px', color:'var(--text-faint)', fontFamily:'var(--font-ui)' }}>
-            {data?.source === 'datamuse' ? 'via Datamuse' : data?.source === 'offline' ? 'offline mode' : ''}
-          </span>
-          <button onClick={() => { onIgnore(word); onClose(); }} style={{ background:'none', border:'none', fontSize:'11px', color:'var(--text-faint)', fontFamily:'var(--font-ui)', cursor:'pointer', fontStyle:'italic', padding:'2px 4px' }}>
-            Ignore this word
-          </button>
-        </div>
       </div>
     </>,
     document.body
@@ -292,7 +418,7 @@ function Chip({ text, warning=false, onHover, onLeave, onIgnore }) {
   );
 }
 
-function AdverbChip({ word, count, onHover, onLeave, onIgnore, onReplace }) {
+function AdverbChip({ word, count, content, onHover, onLeave, onIgnore, onReplace }) {
   const [popup, setPopup] = useState(null);
   const ref = useRef(null);
 
@@ -318,8 +444,7 @@ function AdverbChip({ word, count, onHover, onLeave, onIgnore, onReplace }) {
           background: popup ? 'var(--glass-active)' : warning ? 'rgba(200,120,80,0.08)' : 'var(--accent-dim)',
           fontSize:'11px', fontFamily:'var(--font-ui)',
           color: warning ? 'rgba(200,120,80,0.9)' : 'var(--accent)',
-          cursor:'pointer', transition:'background 0.12s',
-          userSelect:'none',
+          cursor:'pointer', transition:'background 0.12s', userSelect:'none',
         }}
       >
         {word} <span style={{ opacity:0.6 }}>×{count}</span>
@@ -327,9 +452,9 @@ function AdverbChip({ word, count, onHover, onLeave, onIgnore, onReplace }) {
       </span>
       {popup && (
         <AdverbPopup
-          word={word} count={count} pos={popup}
+          word={word} count={count} pos={popup} content={content}
           onReplace={onReplace}
-          onIgnore={() => { onIgnore(word); setPopup(null); }}
+          onIgnore={(w) => { onIgnore(w); setPopup(null); }}
           onClose={() => setPopup(null)}
         />
       )}
@@ -366,7 +491,7 @@ function DistBar({ dist, total, onHover, onLeave }) {
 
 // ── Main Analysis sidebar ──────────────────────────────────────────────────────
 
-export default function Analysis({ data, onHighlight, onReplace, onClose }) {
+export default function Analysis({ data, content, onHighlight, onReplace, onClose }) {
   const [ignored, setIgnored] = useState(loadIgnored);
   const [addInput, setAddInput] = useState('');
   const inputRef = useRef(null);
@@ -483,10 +608,10 @@ export default function Analysis({ data, onHighlight, onReplace, onClose }) {
             {adverbs.length > 0 ? (
               <div style={{ display:'flex', flexWrap:'wrap', gap:'4px' }}>
                 {adverbs.map(({ word, count }) => (
-                  <AdverbChip key={word} word={word} count={count}
+                  <AdverbChip key={word} word={word} count={count} content={content}
                     onHover={() => hl({ type:'word', word })} onLeave={clr}
                     onIgnore={ignoreFromChip}
-                    onReplace={(old, alt) => onReplace(old, alt)} />
+                    onReplace={(old, alt, indices) => onReplace(old, alt, indices)} />
                 ))}
               </div>
             ) : <span style={{ fontSize:'12px', color:'#7a9e7e', fontFamily:'var(--font-ui)' }}>None detected</span>}

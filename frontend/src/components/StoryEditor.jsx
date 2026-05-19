@@ -219,17 +219,37 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
 
   const switchView = (v) => { setView(v); if (v !== 'edit') onFocusChange(false); };
 
-  const handleReplace = (oldWord, newWord) => {
-    const regex = new RegExp(`\\b${oldWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
-    const updated = content.replace(regex, (match) => {
-      if (match[0] === match[0].toUpperCase() && match[0] !== match[0].toLowerCase()) {
-        return newWord.charAt(0).toUpperCase() + newWord.slice(1);
-      }
-      return newWord.toLowerCase();
+  const handleReplace = (oldWord, newWord, selectedIndices) => {
+    const escaped = oldWord.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex   = new RegExp(`\\b${escaped}\\b`, 'gi');
+
+    if (!selectedIndices) {
+      // Replace all
+      const updated = content.replace(regex, (m) =>
+        m[0] === m[0].toUpperCase() && m[0] !== m[0].toLowerCase()
+          ? newWord.charAt(0).toUpperCase() + newWord.slice(1)
+          : newWord.toLowerCase()
+      );
+      setContent(updated); setSaveStatus('saving'); save({ content: updated });
+      return;
+    }
+
+    // Replace only selected occurrences — collect positions, work backwards
+    const matches = [];
+    let m;
+    const re = new RegExp(`\\b${escaped}\\b`, 'gi');
+    while ((m = re.exec(content)) !== null) matches.push({ index: m.index, length: m[0].length, matched: m[0] });
+
+    let result = content;
+    // Work backwards so indices stay valid
+    [...selectedIndices].sort((a, b) => b - a).forEach(i => {
+      const { index, length, matched } = matches[i];
+      const rep = matched[0] === matched[0].toUpperCase() && matched[0] !== matched[0].toLowerCase()
+        ? newWord.charAt(0).toUpperCase() + newWord.slice(1)
+        : newWord.toLowerCase();
+      result = result.slice(0, index) + rep + result.slice(index + length);
     });
-    setContent(updated);
-    setSaveStatus('saving');
-    save({ content: updated });
+    setContent(result); setSaveStatus('saving'); save({ content: result });
   };
 
   const toggleAnalysis = () => {
@@ -291,7 +311,7 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
         </div>
 
         {showAnalysis && (
-          <Analysis data={analysisData} onHighlight={setHighlight} onReplace={handleReplace} onClose={toggleAnalysis} />
+          <Analysis data={analysisData} content={content} onHighlight={setHighlight} onReplace={handleReplace} onClose={toggleAnalysis} />
         )}
       </div>
 
