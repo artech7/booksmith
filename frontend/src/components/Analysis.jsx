@@ -35,9 +35,9 @@ function Stat({ label, value, sub, warning = false, good = false }) {
   );
 }
 
-function Section({ label, children, count, countWarning = false }) {
+function Section({ label, children, count, countWarning = false, last = false }) {
   return (
-    <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+    <div style={{ padding: '11px 16px', borderBottom: last ? 'none' : '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', gap: '7px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: '9px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-faint)', fontFamily: 'var(--font-ui)' }}>
           {label}
@@ -139,7 +139,7 @@ export default function Analysis({ text, onClose }) {
           <button className="modal-x" onClick={onClose}>×</button>
         </div>
 
-        <div style={{ overflowY: 'auto', flex: 1 }}>
+        <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '16px' }}>
 
           {/* Readability */}
           {fk && (
@@ -252,7 +252,7 @@ export default function Analysis({ text, onClose }) {
           </Section>
 
           {/* Dialogue */}
-          <Section label="Punctuation & Style" count={dialogue.length} countWarning>
+          <Section label="Punctuation & Style" count={dialogue.length} countWarning last>
             {dialogue.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                 {dialogue.map((issue, i) => (
