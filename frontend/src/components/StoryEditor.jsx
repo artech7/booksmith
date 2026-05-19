@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useDebounce } from '../hooks/useDebounce.js';
-import { splitSentences, sentenceCategory, wordCount, analyzeText } from '../analysis.js';
+import { splitSentences, sentenceCategory, analyzeText } from '../analysis.js';
 import Analysis from './Analysis.jsx';
 
 const WORDS_PER_PAGE = 250;
@@ -8,99 +8,96 @@ const WORDS_PER_PAGE = 250;
 function paginate(text) {
   if (!text.trim()) return [''];
   const tokens = text.split(/(\s+)/);
-  const pages = []; let page = '', count = 0;
+  const pages = []; let pg = '', count = 0;
   for (const tok of tokens) {
     const isWord = /\S/.test(tok);
     if (isWord) count++;
-    page += tok;
-    if (count >= WORDS_PER_PAGE && isWord) { pages.push(page.trimEnd()); page = ''; count = 0; }
+    pg += tok;
+    if (count >= WORDS_PER_PAGE && isWord) { pages.push(pg.trimEnd()); pg = ''; count = 0; }
   }
-  if (page.trim() || pages.length === 0) pages.push(page.trimEnd());
+  if (pg.trim() || pages.length === 0) pages.push(pg.trimEnd());
   return pages;
 }
 
-// ── Highlight matching logic ───────────────────────────────────────────────────
+// ── Highlight matching ─────────────────────────────────────────────────────────
 
-function sentenceMatches(s, highlight) {
-  if (!highlight) return false;
+function sentenceMatches(s, hl) {
+  if (!hl) return false;
   const wc  = s.trim().split(/\s+/).length;
   const cat = sentenceCategory(wc);
-  if (highlight.type === 'length')         return cat === highlight.cat || (highlight.cat === 'very-long' && wc > 40);
-  if (highlight.type === 'sentence')       return s.startsWith(highlight.text.replace('…','').slice(0, 30));
-  if (highlight.type === 'word')           return s.toLowerCase().includes(highlight.word.toLowerCase());
+  if (hl.type === 'length')   return cat === hl.cat || (hl.cat === 'very-long' && wc > 40);
+  if (hl.type === 'sentence') return s.startsWith(hl.text.replace('…','').slice(0, 30));
+  if (hl.type === 'word')     return s.toLowerCase().includes(hl.word.toLowerCase());
   return false;
 }
 
-function paraMatches(para, highlight) {
-  if (!highlight) return false;
-  if (highlight.type === 'paragraph-wall') return wordCount(para) > 120;
+function paraMatches(para, hl) {
+  if (!hl) return false;
+  if (hl.type === 'paragraph-wall') return para.trim().split(/\s+/).length > 120;
   return false;
 }
 
-// ── Color scheme ───────────────────────────────────────────────────────────────
+// ── Colors ────────────────────────────────────────────────────────────────────
 
-const CAT_BG     = { short:'rgba(122,158,126,0.18)', medium:'transparent', long:'rgba(200,160,80,0.14)', 'very-long':'rgba(200,90,70,0.16)' };
-const CAT_BORDER = { short:'rgba(122,158,126,0.5)',   medium:'transparent', long:'rgba(200,160,80,0.5)',  'very-long':'rgba(200,90,70,0.5)'  };
+const CAT_BG     = { short:'rgba(122,158,126,0.18)', medium:'transparent',             long:'rgba(200,160,80,0.14)', 'very-long':'rgba(200,90,70,0.16)' };
+const CAT_BORDER = { short:'rgba(122,158,126,0.5)',   medium:'transparent',             long:'rgba(200,160,80,0.5)',  'very-long':'rgba(200,90,70,0.5)'  };
 const HL_BG      = { short:'rgba(122,158,126,0.45)', medium:'rgba(200,169,110,0.35)', long:'rgba(200,160,80,0.40)', 'very-long':'rgba(200,90,70,0.40)' };
 
-// ── Word-level text renderer ───────────────────────────────────────────────────
+// ── Word-level highlighter ─────────────────────────────────────────────────────
 
 function SentenceText({ text, word }) {
   if (!word) return <>{text}</>;
   const regex = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
   const parts = text.split(regex);
+  // reset lastIndex since we reuse the regex
+  regex.lastIndex = 0;
   return (
     <>
       {parts.map((part, i) =>
-        regex.test(part) ? (
-          <mark key={i} style={{
-            background: 'var(--accent)',
-            color: 'var(--bg)',
-            borderRadius: '2px',
-            padding: '0 1px',
-            fontWeight: 500,
-          }}>{part}</mark>
-        ) : <span key={i}>{part}</span>
+        part.toLowerCase() === word.toLowerCase()
+          ? <mark key={i} style={{ background:'var(--accent)', color:'var(--bg)', borderRadius:'2px', padding:'0 1px', fontWeight:500 }}>{part}</mark>
+          : <span key={i}>{part}</span>
       )}
     </>
   );
 }
 
-// ── Review view ────────────────────────────────────────────────────────────────
+// ── Review view — scoped to current page text ──────────────────────────────────
 
-function ReviewView({ content, highlight }) {
+function ReviewView({ pageText, highlight }) {
   const scrollRef = useRef(null);
 
   const paragraphs = useMemo(() =>
-    content.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+    (pageText || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
       .map(para => ({ raw: para, sentences: splitSentences(para) })),
-    [content]
+    [pageText]
   );
 
-  // Auto-scroll to first highlighted element when highlight changes
+  // Auto-scroll to first match
   useEffect(() => {
-    if (!highlight || !scrollRef.current) return;
-    // Small delay to let render complete
     const t = setTimeout(() => {
-      const el = scrollRef.current?.querySelector('[data-match="true"]');
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 30);
+      if (!scrollRef.current) return;
+      if (highlight) {
+        const el = scrollRef.current.querySelector('[data-match="true"]');
+        if (el) { el.scrollIntoView({ behavior:'smooth', block:'center' }); return; }
+      }
+      scrollRef.current.scrollTop = 0;
+    }, 40);
     return () => clearTimeout(t);
-  }, [highlight]);
+  }, [highlight, pageText]);
 
-  if (!content.trim()) return (
+  if (!pageText?.trim()) return (
     <div style={{ padding:'28px 48px', color:'var(--text-faint)', fontStyle:'italic', fontSize:'18px' }}>
-      Nothing to review yet.
+      Nothing on this page yet.
     </div>
   );
 
-  // Track whether we've placed the first match yet (for scroll target)
-  let firstMatchPlaced = false;
+  let firstMatch = false;
 
   return (
-    <div ref={scrollRef} style={{ padding:'18px 40px 28px', overflowY:'auto', flex:1, minHeight:0, fontSize:'18px', fontFamily:'var(--font-body)', fontWeight:300, color:'var(--text)' }}>
+    <div ref={scrollRef} style={{ flex:1, minHeight:0, overflowY:'auto', padding:'20px 40px 28px', fontSize:'18px', fontFamily:'var(--font-body)', fontWeight:300, color:'var(--text)', lineHeight:2.0 }}>
       {/* Legend */}
-      <div style={{ display:'flex', gap:'14px', marginBottom:'18px', flexWrap:'wrap', paddingBottom:'12px', borderBottom:'1px solid var(--glass-border)' }}>
+      <div style={{ display:'flex', gap:'12px', flexWrap:'wrap', marginBottom:'16px', paddingBottom:'12px', borderBottom:'1px solid var(--glass-border)', alignItems:'center' }}>
         {[
           { label:'Short (≤8)',      cat:'short'     },
           { label:'Medium (9–18)',   cat:'medium'    },
@@ -109,64 +106,47 @@ function ReviewView({ content, highlight }) {
         ].map(({ label, cat }) => (
           <span key={cat} style={{ display:'inline-flex', alignItems:'center', gap:'5px', fontSize:'10px', color:'var(--text-muted)', fontFamily:'var(--font-ui)' }}>
             <span style={{
-              display:'inline-block', width:'24px', height:'9px', borderRadius:'2px',
+              display:'inline-block', width:'22px', height:'8px', borderRadius:'2px',
               background: CAT_BG[cat] === 'transparent' ? 'var(--glass-bg)' : CAT_BG[cat],
               border: `1px solid ${CAT_BORDER[cat] === 'transparent' ? 'var(--glass-border)' : CAT_BORDER[cat]}`,
             }} />{label}
           </span>
         ))}
-        {highlight && (
-          <span style={{ marginLeft:'auto', fontSize:'10px', color:'var(--accent)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>
-            ● highlighted
-          </span>
-        )}
+        {highlight && <span style={{ marginLeft:'auto', fontSize:'10px', color:'var(--accent)', fontFamily:'var(--font-ui)', fontStyle:'italic' }}>● highlighted</span>}
       </div>
 
-      {/* Paragraphs */}
       {paragraphs.map(({ raw, sentences }, pi) => {
-        const pHighlit = paraMatches(raw, highlight);
-        const isFirstParaMatch = pHighlit && !firstMatchPlaced;
-        if (isFirstParaMatch) firstMatchPlaced = true;
-
+        const pHl = paraMatches(raw, highlight);
+        const isFirstPara = pHl && !firstMatch;
+        if (isFirstPara) firstMatch = true;
         return (
-          <p key={pi}
-            data-match={isFirstParaMatch ? 'true' : undefined}
-            style={{
-              marginBottom:'1.4em', lineHeight:2.0,
-              background:   pHighlit ? 'rgba(200,169,110,0.07)' : 'transparent',
-              borderLeft:   pHighlit ? '3px solid var(--accent)' : '3px solid transparent',
-              paddingLeft:  pHighlit ? '12px' : '0',
-              borderRadius: '2px',
-              transition:   'background 0.2s, border-color 0.2s',
-            }}
-          >
+          <p key={pi} data-match={isFirstPara ? 'true' : undefined} style={{
+            marginBottom:'1.4em',
+            background:  pHl ? 'rgba(200,169,110,0.07)' : 'transparent',
+            borderLeft:  pHl ? '3px solid var(--accent)' : '3px solid transparent',
+            paddingLeft: pHl ? '12px' : '0',
+            borderRadius:'2px', transition:'background 0.2s, border-color 0.2s',
+          }}>
             {sentences.map((s, si) => {
-              const wc        = s.trim().split(/\s+/).length;
-              const cat       = sentenceCategory(wc);
-              const isHighlit = sentenceMatches(s, highlight);
-              const isWordHL  = isHighlit && highlight?.type === 'word';
-              const isFirstSentMatch = isHighlit && !firstMatchPlaced;
-              if (isFirstSentMatch) firstMatchPlaced = true;
-
+              const wc = s.trim().split(/\s+/).length;
+              const cat = sentenceCategory(wc);
+              const isHl = sentenceMatches(s, highlight);
+              const isFirst = isHl && !firstMatch;
+              if (isFirst) firstMatch = true;
               return (
-                <span key={si}
-                  data-match={isFirstSentMatch ? 'true' : undefined}
+                <span key={si} data-match={isFirst ? 'true' : undefined}
                   title={`${wc} words — ${cat.replace('-',' ')}`}
                   style={{
-                    background:   isHighlit ? (HL_BG[cat] || 'rgba(200,169,110,0.35)') : CAT_BG[cat],
-                    borderBottom: `2px solid ${isHighlit ? 'var(--accent)' : CAT_BORDER[cat]}`,
-                    borderRadius: '2px',
-                    padding:      '1px 2px',
-                    marginRight:  '4px',
-                    display:      'inline',
-                    boxShadow:    isHighlit ? '0 0 0 1px rgba(200,169,110,0.3)' : 'none',
-                    transition:   'background 0.15s, box-shadow 0.15s',
+                    background:   isHl ? (HL_BG[cat] || 'rgba(200,169,110,0.35)') : CAT_BG[cat],
+                    borderBottom: `2px solid ${isHl ? 'var(--accent)' : CAT_BORDER[cat]}`,
+                    borderRadius:'2px', padding:'1px 2px', marginRight:'4px', display:'inline',
+                    boxShadow: isHl ? '0 0 0 1px rgba(200,169,110,0.3)' : 'none',
+                    transition:'background 0.15s, box-shadow 0.15s',
                   }}
                 >
-                  {isWordHL
+                  {isHl && highlight?.type === 'word'
                     ? <SentenceText text={s} word={highlight.word} />
-                    : s
-                  }
+                    : s}
                 </span>
               );
             })}
@@ -193,11 +173,8 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
   const save = useDebounce((d) => onSave(chapter.id, d), 1100);
 
   useEffect(() => {
-    setTitle(chapter.title     ?? '');
-    setContent(chapter.content ?? '');
-    setEditingGoal(false);
-    setShowAnalysis(false);
-    setHighlight(null);
+    setTitle(chapter.title ?? ''); setContent(chapter.content ?? '');
+    setEditingGoal(false); setShowAnalysis(false); setHighlight(null); setPage(0);
   }, [chapter.id]);
 
   const onTitle   = (e) => { setTitle(e.target.value);   setSaveStatus('saving'); save({ title:   e.target.value }); };
@@ -209,22 +186,26 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
     return () => window.removeEventListener('keydown', h);
   }, [distractionFree, onToggleDistractionFree]);
 
-  // Stats
-  const words  = content.trim() ? content.trim().split(/\s+/).length : 0;
-  const chars  = content.length;
-  const pages  = paginate(content);
-  const total  = pages.length;
-  const pgText = words === 0 ? '< 1 pg' : `~${total} ${total === 1 ? 'pg' : 'pgs'}`;
+  // Pagination
+  const pages    = paginate(content);
+  const total    = pages.length;
+  const pageText = pages[Math.min(page, total - 1)] || '';
+  const words    = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const chars    = content.length;
+  const pgText   = words === 0 ? '< 1 pg' : `~${total} ${total === 1 ? 'pg' : 'pgs'}`;
   useEffect(() => { if (page >= total) setPage(Math.max(0, total - 1)); }, [total]);
 
+  // When page changes in review+analysis mode, clear highlight
+  useEffect(() => { setHighlight(null); }, [page]);
+
   // Goals
-  const wordGoal   = chapter.word_goal || 0;
-  const pageGoal   = chapter.page_goal || 0;
-  const activeGoal = pageGoal > 0 ? pageGoal : wordGoal;
-  const goalUnit   = pageGoal > 0 ? 'pages' : 'words';
-  const goalCurrent= pageGoal > 0 ? total : words;
-  const pct        = activeGoal > 0 ? Math.min(100, (goalCurrent / activeGoal) * 100) : 0;
-  const goalDone   = activeGoal > 0 && goalCurrent >= activeGoal;
+  const wordGoal    = chapter.word_goal || 0;
+  const pageGoal    = chapter.page_goal || 0;
+  const activeGoal  = pageGoal > 0 ? pageGoal : wordGoal;
+  const goalUnit    = pageGoal > 0 ? 'pages' : 'words';
+  const goalCurrent = pageGoal > 0 ? total : words;
+  const pct         = activeGoal > 0 ? Math.min(100, (goalCurrent / activeGoal) * 100) : 0;
+  const goalDone    = activeGoal > 0 && goalCurrent >= activeGoal;
 
   const openGoalEditor = () => { setGoalInput(activeGoal > 0 ? String(activeGoal) : ''); setEditingGoal(true); setTimeout(() => goalRef.current?.select(), 30); };
   const saveGoal = () => {
@@ -236,35 +217,37 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
   };
   const clearGoal = (e) => { e.stopPropagation(); setEditingGoal(false); onSave(chapter.id, { word_goal:0, page_goal:0 }); };
 
-  const switchView = (v) => { setView(v); if (v === 'pages') setPage(0); if (v !== 'edit') onFocusChange(false); };
+  const switchView = (v) => { setView(v); if (v !== 'edit') onFocusChange(false); };
 
-  // Toggle analysis — auto-switch to review when opening, back to edit when closing
   const toggleAnalysis = () => {
     if (!showAnalysis) { setShowAnalysis(true); setView('review'); setHighlight(null); }
     else               { setShowAnalysis(false); setHighlight(null); setView('edit'); }
   };
 
-  // Analysis data (memoized)
-  const analysisData = useMemo(() => showAnalysis ? analyzeText(content) : null, [content, showAnalysis]);
+  // Analysis data — scoped to CURRENT PAGE only
+  const analysisData = useMemo(() =>
+    showAnalysis ? analyzeText(pageText) : null,
+    [pageText, showAnalysis]
+  );
 
-  // Current view label for toggle
-  const isReview = view === 'review';
+  const showPageNav = view === 'pages' || view === 'review' || showAnalysis;
 
   return (
     <div className="editor">
 
-      {/* Title row */}
+      {/* Header */}
       <div className="editor-header">
         <input className="editor-title" value={title} onChange={onTitle} placeholder="Chapter title…" spellCheck />
         <div className="editor-controls">
           <div className="view-toggle">
-            <button className={`view-btn ${view==='edit'   && !showAnalysis ? 'active' : ''}`} onClick={() => { switchView('edit'); if(showAnalysis){setShowAnalysis(false);setHighlight(null);} }}>✎ Edit</button>
-            <button className={`view-btn ${view==='review' || showAnalysis ? 'active' : ''}`}  onClick={() => { switchView('review'); }}>◉ Review</button>
-            <button className={`view-btn ${view==='pages'  && !showAnalysis ? 'active' : ''}`} onClick={() => { switchView('pages'); }}>◫ Pages</button>
+            <button className={`view-btn ${view==='edit' && !showAnalysis ? 'active' : ''}`}
+              onClick={() => { switchView('edit'); if(showAnalysis){ setShowAnalysis(false); setHighlight(null); } }}>✎ Edit</button>
+            <button className={`view-btn ${view==='review' || showAnalysis ? 'active' : ''}`}
+              onClick={() => switchView('review')}>◉ Review</button>
+            <button className={`view-btn ${view==='pages' && !showAnalysis ? 'active' : ''}`}
+              onClick={() => switchView('pages')}>◫ Pages</button>
           </div>
-          <button className={`btn btn-sm ${showAnalysis ? 'btn-accent' : ''}`} onClick={toggleAnalysis}>
-            ✎ Analysis
-          </button>
+          <button className={`btn btn-sm ${showAnalysis ? 'btn-accent' : ''}`} onClick={toggleAnalysis}>✎ Analysis</button>
           <button className={`btn btn-sm ${distractionFree ? 'btn-accent' : ''}`} onClick={onToggleDistractionFree}>
             {distractionFree ? '◈ Exit Focus' : '◈ Focus'}
           </button>
@@ -273,28 +256,20 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
 
       <div className="editor-divider" />
 
-      {/* Body — splits into review + analysis sidebar when analysis is open */}
+      {/* Body */}
       <div className="editor-body" style={{ flexDirection: showAnalysis ? 'row' : 'column' }}>
-
-        {/* Main content area */}
         <div style={{ flex:1, minWidth:0, minHeight:0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
           {(view === 'review' || showAnalysis) ? (
-            <ReviewView content={content} highlight={highlight} />
+            <ReviewView pageText={pageText} highlight={highlight} />
           ) : view === 'edit' ? (
-            <textarea
-              className="story-textarea"
-              value={content}
-              onChange={onContent}
-              onFocus={() => onFocusChange(true)}
-              onBlur={() => onFocusChange(false)}
-              placeholder="Begin your story here… let the words find you."
-              spellCheck
-            />
+            <textarea className="story-textarea" value={content} onChange={onContent}
+              onFocus={() => onFocusChange(true)} onBlur={() => onFocusChange(false)}
+              placeholder="Begin your story here… let the words find you." spellCheck />
           ) : (
             <div className="pages-scroll">
               <div className="page-sheet">
                 <div className="page-text">
-                  {pages[page] || <span style={{ color:'var(--text-faint)', fontStyle:'italic' }}>This page is empty.</span>}
+                  {pageText || <span style={{ color:'var(--text-faint)', fontStyle:'italic' }}>This page is empty.</span>}
                 </div>
                 <div className="page-num">— {page + 1} —</div>
               </div>
@@ -302,13 +277,8 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
           )}
         </div>
 
-        {/* Analysis sidebar — inline, no portal needed */}
         {showAnalysis && (
-          <Analysis
-            data={analysisData}
-            onHighlight={setHighlight}
-            onClose={toggleAnalysis}
-          />
+          <Analysis data={analysisData} onHighlight={setHighlight} onClose={toggleAnalysis} />
         )}
       </div>
 
@@ -323,12 +293,11 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
               placeholder="word count" autoFocus />
             <span style={{ fontSize:'12px', color:'var(--text-muted)', fontFamily:'var(--font-ui)' }}>words</span>
             <button className="goal-action-btn goal-confirm" onClick={saveGoal}>✓</button>
-            <button className="goal-action-btn goal-cancel"  onClick={() => setEditingGoal(false)}>✗</button>
+            <button className="goal-action-btn goal-cancel" onClick={() => setEditingGoal(false)}>✗</button>
             {activeGoal > 0 && <button className="goal-action-btn goal-clear" onClick={clearGoal}>Clear</button>}
           </div>
         ) : (
-          <span className={`stats ${activeGoal>0?'stats-clickable':''}`}
-            onClick={activeGoal>0?openGoalEditor:undefined}>
+          <span className={`stats ${activeGoal>0?'stats-clickable':''}`} onClick={activeGoal>0?openGoalEditor:undefined}>
             {activeGoal > 0 ? (
               <>
                 <span style={{ color:goalDone?'var(--accent)':'var(--text-muted)' }}>{goalCurrent.toLocaleString()}</span>
@@ -342,9 +311,10 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
           </span>
         )}
 
-        {view === 'pages' && !showAnalysis && (
+        {/* Page nav — shown in Review, Pages, and Analysis modes */}
+        {showPageNav && (
           <>
-            <div style={{ width:'1px', height:'13px', background:'var(--glass-border)', margin:'0 2px' }} />
+            <div style={{ width:'1px', height:'13px', background:'var(--glass-border)', margin:'0 4px' }} />
             <button className="btn btn-sm" onClick={() => setPage(p=>Math.max(0,p-1))} disabled={page===0} style={{ opacity:page===0?0.3:1 }}>← Prev</button>
             <span style={{ fontSize:'12px', color:'var(--text-muted)', fontFamily:'var(--font-ui)', minWidth:'78px', textAlign:'center' }}>
               Page {page+1} of {total}
