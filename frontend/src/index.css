@@ -1338,6 +1338,7 @@ body.theme-light .page-sheet { box-shadow: 0 4px 24px rgba(0,0,0,0.12); }
   top: 56px;
   right: 16px;
   width: 300px;
+  height: calc(100vh - 80px);
   max-height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;

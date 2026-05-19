@@ -139,7 +139,7 @@ export default function Analysis({ text, onClose }) {
           <button className="modal-x" onClick={onClose}>×</button>
         </div>
 
-        <div style={{ overflowY: 'auto', flex: 1, paddingBottom: '16px' }}>
+        <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, paddingBottom: '16px' }}>
 
           {/* Readability */}
           {fk && (
