@@ -264,7 +264,7 @@ function ReviewView({ pageText, highlight }) {
 
 // ── Main editor ────────────────────────────────────────────────────────────────
 
-export default function StoryEditor({ chapter, onSave, onFocusChange, distractionFree, onToggleDistractionFree, setSaveStatus }) {
+export default function StoryEditor({ bookId, chapter, onSave, onFocusChange, distractionFree, onToggleDistractionFree, setSaveStatus }) {
   const [title,        setTitle]        = useState(chapter.title   ?? '');
   const [content,      setContent]      = useState(chapter.content ?? '');
   const [view,         setView]         = useState('edit');
@@ -416,7 +416,7 @@ export default function StoryEditor({ chapter, onSave, onFocusChange, distractio
         </div>
 
         {showAnalysis && (
-          <Analysis data={analysisData} content={content} onHighlight={setHighlight} onReplace={handleReplace} onClose={toggleAnalysis} />
+          <Analysis data={analysisData} content={content} bookId={bookId} onHighlight={setHighlight} onReplace={handleReplace} onClose={toggleAnalysis} />
         )}
       </div>
 

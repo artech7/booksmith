@@ -257,6 +257,7 @@ export default function App() {
           {tab === 'story' && chapter ? (
             <StoryEditor
               key={chapter.id}
+              bookId={bookId}
               chapter={chapter}
               onSave={saveChapter}
               onFocusChange={setFocusMode}

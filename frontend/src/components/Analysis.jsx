@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { ALTERNATIVES } from '../alternatives.js';
 import { getAlternatives } from '../thesaurus.js';
 
-const IGNORED_KEY = 'bs_ignored_words';
-const loadIgnored = () => { try { return new Set(JSON.parse(localStorage.getItem(IGNORED_KEY)) || []); } catch { return new Set(); } };
-const saveIgnored = (set) => localStorage.setItem(IGNORED_KEY, JSON.stringify([...set]));
+const IGNORED_KEY = (bookId) => `bs_ignored_words_${bookId}`;
+const loadIgnored = (bookId) => { try { return new Set(JSON.parse(localStorage.getItem(IGNORED_KEY(bookId))) || []); } catch { return new Set(); } };
+const saveIgnored = (bookId, set) => localStorage.setItem(IGNORED_KEY(bookId), JSON.stringify([...set]));
 
 // ── Grade badge ────────────────────────────────────────────────────────────────
 
@@ -492,19 +492,22 @@ function DistBar({ dist, total, onHover, onLeave }) {
 
 // ── Main Analysis sidebar ──────────────────────────────────────────────────────
 
-export default function Analysis({ data, content, onHighlight, onReplace, onClose }) {
-  const [ignored, setIgnored] = useState(loadIgnored);
+export default function Analysis({ data, content, bookId, onHighlight, onReplace, onClose }) {
+  const [ignored,  setIgnored]  = useState(() => loadIgnored(bookId));
   const [addInput, setAddInput] = useState('');
   const inputRef = useRef(null);
+
+  // Reload ignored words when bookId changes
+  useEffect(() => { setIgnored(loadIgnored(bookId)); }, [bookId]);
 
   const addIgnored = (word) => {
     if (!word.trim()) return;
     const next = new Set(ignored); next.add(word.toLowerCase().trim());
-    setIgnored(next); saveIgnored(next); setAddInput('');
+    setIgnored(next); saveIgnored(bookId, next); setAddInput('');
   };
   const removeIgnored = (word) => {
     const next = new Set(ignored); next.delete(word);
-    setIgnored(next); saveIgnored(next);
+    setIgnored(next); saveIgnored(bookId, next);
   };
   const ignoreFromChip = (word) => addIgnored(word);
 
